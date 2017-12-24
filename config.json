@@ -1,0 +1,21 @@
+{
+   "_comment":"Configuration File for MQTT LOAD TEST TOOL",
+   "broker_ip":"test.mqtt.iot83.com",
+   "broker_port":1883,
+   "qos":1,
+   "keep_alive":30,
+   "clean_session":0,
+   "num_aps": 10,
+   "user_ids":"syn_file/userids.txt",
+   "serial_nums":"syn_file/serialnum.txt",
+   "mqtt_topic_prefix":"vne",
+   "scenarios":
+   {
+   		"rg":
+   		{
+   			"path":"syn_file\\scenarios",
+   			"info":"master_rg_info.json",
+   			"report":"master_rg_report.json"
+   		}
+    }
+ }

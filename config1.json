@@ -1,0 +1,38 @@
+{
+   "_comment":"Configuration File for MQTT LOAD TEST TOOL",
+   "broker_ip":"test.mqtt.iot83.com",
+   "broker_port":1883,
+   "qos":0,
+   "keep_alive":30,
+   "clean_session":0,
+   "num_aps": 2,
+   "user_ids":"syn_file/userids1.txt",
+   "serial_nums":"syn_file/serialnum1.txt",
+   "mqtt_topic_prefix":"VNE_REPORT",
+   "scenarios":
+   {
+   		"path":"syn_file/scenarios/",
+   		"ap_mac_file":"master_aps_mac_addr.txt",
+   		"sta_mac_file":"master_sta_mac_addr.txt",
+   		"rg":
+   		{
+   			"info":"master_rg_info.json",
+   			"report":"master_rg_report.json"
+   		},   		
+   		"ext":
+   		{
+   			"info":"master_ext_info.json",
+   			"report":"master_ext_report.json"
+   		},
+   		"profiles":
+   		[	
+   			{
+				"name":"Home1",
+				"num_profiles": 100000,
+				"num_rg": 1,
+				"num_ext": 2
+				  		
+   			}
+   		]
+    }
+ }
