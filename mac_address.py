@@ -10,14 +10,17 @@ def get_mac_address():
   
 
   nentries = 125000;
-  prefix = 'AB:78:8B';
+#  prefix = 'AB:78:8B';
+
+  prefix = 'E8:5B:5A';
+
 
 #Samsung: 00:23:C2  
 #Apple: 84:78:8B
 #LG: E8:5B:5B     
   
   #file_name = 'mac_list_' + prefix + '.csv'
-  file_name = 'mac_list' + '.csv'
+  file_name = 'mac_list_LG' + '.csv'
   final_count = 0
   ninc = 1;
   hex_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];

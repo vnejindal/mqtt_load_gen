@@ -3,7 +3,7 @@
    "broker_ip":"test.mqtt.iot83.com",
    "broker_port":1883,
    "qos":0,
-   "keep_alive":30,
+   "keep_alive":90,
    "clean_session":0,
    "num_aps": 2,
    "user_ids":"syn_file/userids1.txt",
@@ -28,7 +28,7 @@
    		[	
    			{
 				"name":"Home1",
-				"num_profiles": 100000,
+				"num_profiles": 100,
 				"num_rg": 1,
 				"num_ext": 2
 				  		

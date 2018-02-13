@@ -4,10 +4,13 @@
 """
 
 import paho.mqtt.client as mqtt
+from bottle import route, run, Bottle
+
 
 import os
 import sys
 import json
+import socket
 from random import randint
 from time import sleep
 from time import time
@@ -64,6 +67,9 @@ def on_message(client, userdata, msg):
         
 def on_publish(client, userdata, mid):
 #    print("mid: "+str(mid))
+    global scenario_config
+    #print 'updating scenario config: ', userdata, scenario_config[userdata]['pub_cb_count']
+    scenario_config[userdata]['pub_cb_count'] += 1
     pass
 
 
@@ -76,13 +82,13 @@ def start_mqtt(count, client_id):
     srv_keepalive = g_config['keep_alive']
     clean_session = g_config['clean_session']
 
-    mqtt_client = mqtt.Client(client_id, clean_session)
+    mqtt_client = mqtt.Client(client_id, clean_session, count)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
     mqtt_client.on_publish = on_publish
     mqtt_client.on_disconnect = on_disconnect
     
-    mqtt_client.connect(srv_ip, srv_port, srv_keepalive)
+    mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
     scenario_config[count]['mqtt_client'] = mqtt_client
     
     #mqtt_client.loop_forever()
@@ -124,12 +130,17 @@ def init_scenario_config(index):
     global scenario_config
     global g_config
     
+    scenario_config[index]['index'] = index
     scenario_config[index]['Uptime'] = randint(1, 100000)
     scenario_config[index]['BytesSent'] = randint(1, 100000)
     scenario_config[index]['BytesReceived'] = randint(1, 100000)
     scenario_config[index]['mqtt_topic'] = '/'.join([g_config['mqtt_topic_prefix'], 
                            scenario_config[index]['user_id'].strip(), 
                            scenario_config[index]['serial_no'].strip()])
+    #Publish count from paho callback 
+    scenario_config[index]['pub_cb_count'] = 0
+    scenario_config[index]['pub_info_count'] = 0
+    scenario_config[index]['pub_report_count'] = 0
 
 def get_info_payload(file_name):
     """
@@ -177,7 +188,7 @@ def process_report_payload(index):
     json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesSent'] = scenario_config[index]['BytesSent']
     json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesReceived'] = scenario_config[index]['BytesReceived']
     
-    scenario_config[index]['report_payload'] = json.dumps(json_payload)
+    scenario_config[index]['report_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
     
     #scenario_config[index]['BytesSent'] = scenario_config[index]['BytesSent'] + randint(1,100000)
     #scenario_config[index]['BytesReceived'] = scenario_config[index]['BytesReceived'] + randint(1,100000)
@@ -212,7 +223,7 @@ def process_info_payload(index):
     json_payload['result'][0]['DevInfo'][0]['Uptime'] = scenario_config[index]['Uptime'] 
     #scenario_config[index]['Uptime'] = scenario_config[index]['Uptime'] + scenario_config[index]['timestamp']
        
-    scenario_config[index]['info_payload'] = json.dumps(json_payload)
+    scenario_config[index]['info_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
     #print 'sending info message: ', ts_start
     #vne::tbd, check if this can cause memory leak ! 
 
@@ -305,7 +316,7 @@ def load_scenario_config_v1():
         
         #f_profile_name = profile_path + '_'.join([prof_name, 'profile', str(num_profiles), str(num_rg), str(num_ext)]) + '.txt'
         #vne:: hardcoded for now
-        f_profile_name = profile_path + 'Home1_profile_35000_1_2.txt'
+        f_profile_name = profile_path + 'Home1_profile_100000_1_2.txt'
         fp_profile = open(f_profile_name, 'r')
         
         userid_list = []
@@ -414,13 +425,15 @@ def run_scenario(count):
         scenario_config[scn_key]['last_msg_ts'] = int(time())
         process_report_payload(count)
         #Requiremnt from Rohit: Keep Same timestamp in INFO & REPORT and send these two messages at same time
+        scenario_config[scn_key]['pub_report_count'] += 1
         publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
         #sleep(0.1)
         process_info_payload(count)
+        scenario_config[scn_key]['pub_info_count'] += 1
         publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
         sleep(sleep_time)
         ts_diff = int(time()) - scenario_config[scn_key]['last_msg_ts']
-        if ts_diff > sleep_time : 
+        if ts_diff > 60 : 
             print sleep_time, 'secs threshold exceeded for AP:', mqtt_topic, ts_diff
             
  
@@ -450,9 +463,51 @@ def start_scenario():
         g_ap_thr_list.append(ap_thread)
         ap_thread.start()
     
+    start_rest_api()
+
     for count in range(0, num_aps):
         g_ap_thr_list[count].join()
         
+def start_rest_api():
+    """
+    REST API interface function 
+    """
+    global g_config
+    base_port = 4000
+    port_num = base_port + int(g_config['ap_offset'])
+    g_config['api_bottle_ip'] = 'localhost'
+    g_config['api_bottle_port'] = port_num
+    
+    api_thread = Thread(target=run_rest_api, args=(port_num,))
+    g_config['api_thread_id'] = api_thread
+    api_thread.start()
+    api_thread.join()
+
+##@g_config['api_bottle_fd'].route('/thread/<thr_id>')
+@route('/thread/<thr_id>')
+def get_thread_stats(thr_id):
+    
+    global scenario_config
+    index = str(thr_id)
+
+    #print 'get received: ', scenario_config[index]
+    thr_stats = ', '.join([scenario_config[index]['mqtt_topic'],
+                          str(scenario_config[index]['pub_cb_count']), 
+                          str(scenario_config[index]['pub_info_count']), 
+                          str(scenario_config[index]['pub_report_count']),
+                          ' ' 
+                          ])
+    return thr_stats
+
+def run_rest_api(port_num):
+    
+    global g_config
+    
+    #app = Bottle()
+    #g_config['api_bottle_fd'] = app
+    
+    #run(app, host=g_config['api_bottle_ip'], port=g_config['api_bottle_port'])
+    run(host=g_config['api_bottle_ip'], port=g_config['api_bottle_port'])
 
 
 def main():
