@@ -14,7 +14,8 @@ import socket
 from random import randint
 from time import sleep
 from time import time
-from threading import Thread
+#from threading import Thread
+import threading
 import user
 
 
@@ -373,9 +374,12 @@ def load_scenario_config_v1():
             #print scenario_config[str(scn_count)]
             scn_count = scn_count + 1 
             #print scenario_config
-    print 'Total profiles to run: ', len(scenario_config) 
+    print 'Total profiles to run: ', len(scenario_config)
+    print 'Start UserId: ', scenario_config['0']['user_id'] + '/' + scenario_config['0']['serial_no']
+    print 'End UserId: ', scenario_config[str(scn_count - 1)]['user_id'] + '/' + scenario_config[str(scn_count - 1)]['serial_no']
     #print 'User list: ', userid_list
     #print 'Sno list: ', sno_list
+    #print 'Scenario config: ', scenario_config
     g_config['num_aps'] = len(scenario_config)  
 
 
@@ -459,29 +463,39 @@ def start_scenario():
         #print 'thread count: ', thr_count
         # Start Gradually
         sleep(0.1)
-        ap_thread = Thread(target=run_scenario, args=(thr_count,))
+        ap_thread = threading.Thread(target=run_scenario, args=(thr_count,))
         g_ap_thr_list.append(ap_thread)
         ap_thread.start()
     
-    start_rest_api()
+    #start_rest_api()
+    start_rest_api_nmt()
 
+    print 'joining threads'
     for count in range(0, num_aps):
         g_ap_thr_list[count].join()
         
-def start_rest_api():
-    """
-    REST API interface function 
-    """
-    global g_config
-    base_port = 4000
-    port_num = base_port + int(g_config['ap_offset'])
-    g_config['api_bottle_ip'] = 'localhost'
-    g_config['api_bottle_port'] = port_num
-    
-    api_thread = Thread(target=run_rest_api, args=(port_num,))
-    g_config['api_thread_id'] = api_thread
-    api_thread.start()
-    api_thread.join()
+
+@route('/threads/active')
+def get_active_thread():
+     return str(threading.active_count())
+
+@route('/threads')
+def get_thread():
+    global g_config 
+    global scenario_config 
+
+    resp_str = ''
+    index = 0
+    for index in range(0, g_config['num_aps']):
+        resp_str += ', '.join([str(index),
+                          scenario_config[str(index)]['mqtt_topic'],
+                          str(scenario_config[str(index)]['pub_cb_count']), 
+                          str(scenario_config[str(index)]['pub_info_count']), 
+                          str(scenario_config[str(index)]['pub_report_count']),
+                          '\n' 
+                          ])
+    return resp_str
+
 
 ##@g_config['api_bottle_fd'].route('/thread/<thr_id>')
 @route('/thread/<thr_id>')
@@ -495,9 +509,40 @@ def get_thread_stats(thr_id):
                           str(scenario_config[index]['pub_cb_count']), 
                           str(scenario_config[index]['pub_info_count']), 
                           str(scenario_config[index]['pub_report_count']),
-                          ' ' 
+                          '\n' 
                           ])
     return thr_stats
+
+def start_rest_api_nmt():
+    """
+    REST API interface function - non MT
+    """
+    global g_config
+    base_port = 4000
+    port_num = base_port + int(g_config['ap_offset'])
+    g_config['api_bottle_ip'] = 'localhost'
+    g_config['api_bottle_port'] = port_num
+    print 'REST API started'
+
+    run(host=g_config['api_bottle_ip'], port=g_config['api_bottle_port'])
+
+    
+
+def start_rest_api():
+    """
+    REST API interface function 
+    """
+    global g_config
+    base_port = 4000
+    port_num = base_port + int(g_config['ap_offset'])
+    g_config['api_bottle_ip'] = 'localhost'
+    g_config['api_bottle_port'] = port_num
+    
+    api_thread = threading.Thread(target=run_rest_api, args=(port_num,))
+    g_config['api_thread_id'] = api_thread
+    api_thread.start()
+    api_thread.join()
+
 
 def run_rest_api(port_num):
     
