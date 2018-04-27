@@ -74,7 +74,7 @@ def on_publish(client, userdata, mid):
     pass
 
 
-def start_mqtt(count, client_id):
+def start_mqtt(count, client_id, username = "", password = ""):
     global g_config
     global scenario_config
     
@@ -89,8 +89,36 @@ def start_mqtt(count, client_id):
     mqtt_client.on_publish = on_publish
     mqtt_client.on_disconnect = on_disconnect
     
+    if username != "":
+        mqtt_client.username_pw_set(username, password)
+    
     mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
     scenario_config[count]['mqtt_client'] = mqtt_client
+    
+    """
+    if mqtt_profile['username'] == 'default':
+        print 'Please profile non-default client id to connect to'
+        return False
+    
+    if mqtt_profile['transport'] == 'tls':
+        server_cert = common.get_platform_delim().join(['..', 
+                                                         common.get_device_working_dir(),
+                                                         mqtt_profile['cert_directory'], 
+                                                         mqtt_profile['ca_cert']])
+        client_cert = common.get_platform_delim().join(['..',
+                                                         common.get_device_working_dir(),
+                                                         mqtt_profile['cert_directory'],
+                                                         mqtt_profile['client_cert']])
+        client_key = common.get_platform_delim().join(['..',
+                                                       common.get_device_working_dir(),
+                                                       mqtt_profile['cert_directory'],
+                                                       mqtt_profile['client_key']])
+        mqtt_client.tls_set(server_cert, client_cert, client_key) 
+
+    
+    mqtt_client.connect(srv_ip, srv_port, srv_keepalive)
+
+    """
     
     #mqtt_client.loop_forever()
     mqtt_client.loop_start()
@@ -423,7 +451,9 @@ def run_scenario(count):
     init_scenario_config(scn_key)
     mqtt_topic = scenario_config[scn_key]['mqtt_topic']
     
-    start_mqtt(scn_key,  'vne_' + mqtt_topic)
+    ap_sno = scenario_config[scn_key]['serial_no'].strip()
+    
+    start_mqtt(scn_key,  'vne_' + mqtt_topic, ap_sno, ap_sno)
     
     while True:
         scenario_config[scn_key]['last_msg_ts'] = int(time())
