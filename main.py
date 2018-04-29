@@ -91,34 +91,20 @@ def start_mqtt(count, client_id, username = "", password = ""):
     
     if username != "":
         mqtt_client.username_pw_set(username, password)
+
+    if g_config['tls_enabled'] == 1:
+        server_cert = g_config['server_crt']
+        client_cert = g_config['client_crt']
+        client_key = g_config['client_key']
+
+#        print 'server cert:', server_cert
+#        print 'client cert:', client_cert
+#        print 'client key :', client_key
+        mqtt_client.tls_set(server_cert, client_cert, client_key)
+        mqtt_client.tls_insecure_set(True)
     
     mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
     scenario_config[count]['mqtt_client'] = mqtt_client
-    
-    """
-    if mqtt_profile['username'] == 'default':
-        print 'Please profile non-default client id to connect to'
-        return False
-    
-    if mqtt_profile['transport'] == 'tls':
-        server_cert = common.get_platform_delim().join(['..', 
-                                                         common.get_device_working_dir(),
-                                                         mqtt_profile['cert_directory'], 
-                                                         mqtt_profile['ca_cert']])
-        client_cert = common.get_platform_delim().join(['..',
-                                                         common.get_device_working_dir(),
-                                                         mqtt_profile['cert_directory'],
-                                                         mqtt_profile['client_cert']])
-        client_key = common.get_platform_delim().join(['..',
-                                                       common.get_device_working_dir(),
-                                                       mqtt_profile['cert_directory'],
-                                                       mqtt_profile['client_key']])
-        mqtt_client.tls_set(server_cert, client_cert, client_key) 
-
-    
-    mqtt_client.connect(srv_ip, srv_port, srv_keepalive)
-
-    """
     
     #mqtt_client.loop_forever()
     mqtt_client.loop_start()
@@ -400,6 +386,7 @@ def load_scenario_config_v1():
             scenario_config[str(scn_count)] = sc_cfg
             #print 'Adding scenario config: ', scn_count
             #print scenario_config[str(scn_count)]
+            #print 'Starting SNO: ', sc_cfg['serial_no']
             scn_count = scn_count + 1 
             #print scenario_config
     print 'Total profiles to run: ', len(scenario_config)
@@ -453,7 +440,8 @@ def run_scenario(count):
     
     ap_sno = scenario_config[scn_key]['serial_no'].strip()
     
-    start_mqtt(scn_key,  'vne_' + mqtt_topic, ap_sno, ap_sno)
+    #start_mqtt(scn_key,  'vne_' + mqtt_topic, ap_sno, ap_sno)
+    start_mqtt(scn_key,  'vne_' + mqtt_topic)
     
     while True:
         scenario_config[scn_key]['last_msg_ts'] = int(time())

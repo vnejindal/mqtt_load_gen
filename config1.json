@@ -8,6 +8,10 @@
    "num_aps": 2,
    "user_ids":"syn_file/userids1.txt",
    "serial_nums":"syn_file/serialnum1.txt",
+   "tls_enabled":1,
+   "server_crt":"certs/root.crt",
+   "client_crt":"certs/client.crt",
+   "client_key":"certs/client.key",
    "mqtt_topic_prefix":"VNE_REPORT",
    "scenarios":
    {
