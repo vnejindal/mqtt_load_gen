@@ -83,7 +83,13 @@ def start_mqtt(count, client_id, username = "", password = ""):
     srv_keepalive = g_config['keep_alive']
     clean_session = g_config['clean_session']
 
-    mqtt_client = mqtt.Client(client_id, clean_session, count)
+    # Get the lock
+    g_config['thr_lock'].acquire()
+    try:
+        mqtt_client = mqtt.Client(client_id, clean_session, count)
+    finally:
+        g_config['thr_lock'].release()
+
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
     mqtt_client.on_publish = on_publish
@@ -104,6 +110,7 @@ def start_mqtt(count, client_id, username = "", password = ""):
         mqtt_client.tls_insecure_set(True)
     
     mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
+        
     scenario_config[count]['mqtt_client'] = mqtt_client
     
     #mqtt_client.loop_forever()
@@ -407,6 +414,9 @@ def load_config(config_file, ap_offset):
     g_config = get_json_config(config_file)
     #This offset will start AP with this number + num_aps to be executed in that process
     g_config['ap_offset'] = ap_offset
+
+    # create a lock
+    g_config['thr_lock'] = threading.Lock()
     
     # Scenario Specific Config
     #load_scenario_config()
@@ -536,7 +546,7 @@ def start_rest_api_nmt():
     REST API interface function - non MT
     """
     global g_config
-    base_port = 4000
+    base_port = 2000
     port_num = base_port + int(g_config['ap_offset'])
     g_config['api_bottle_ip'] = 'localhost'
     g_config['api_bottle_port'] = port_num
@@ -551,7 +561,7 @@ def start_rest_api():
     REST API interface function 
     """
     global g_config
-    base_port = 4000
+    base_port = 2000
     port_num = base_port + int(g_config['ap_offset'])
     g_config['api_bottle_ip'] = 'localhost'
     g_config['api_bottle_port'] = port_num
