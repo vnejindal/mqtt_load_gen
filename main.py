@@ -17,6 +17,7 @@ from time import time
 #from threading import Thread
 import threading
 import user
+from __builtin__ import False
 
 
 
@@ -87,29 +88,29 @@ def start_mqtt(count, client_id, username = "", password = ""):
     g_config['thr_lock'].acquire()
     try:
         mqtt_client = mqtt.Client(client_id, clean_session, count)
-    finally:
-        g_config['thr_lock'].release()
 
-    mqtt_client.on_connect = on_connect
-    mqtt_client.on_message = on_message
-    mqtt_client.on_publish = on_publish
-    mqtt_client.on_disconnect = on_disconnect
+        mqtt_client.on_connect = on_connect
+        mqtt_client.on_message = on_message
+        mqtt_client.on_publish = on_publish
+        mqtt_client.on_disconnect = on_disconnect
     
-    if username != "":
-        mqtt_client.username_pw_set(username, password)
+        if username != "":
+            mqtt_client.username_pw_set(username, password)
 
-    if g_config['tls_enabled'] == 1:
-        server_cert = g_config['server_crt']
-        client_cert = g_config['client_crt']
-        client_key = g_config['client_key']
+        if g_config['tls_enabled'] == 1:
+             server_cert = g_config['server_crt']
+             client_cert = g_config['client_crt']
+             client_key = g_config['client_key']
 
 #        print 'server cert:', server_cert
 #        print 'client cert:', client_cert
 #        print 'client key :', client_key
-        mqtt_client.tls_set(server_cert, client_cert, client_key)
-        mqtt_client.tls_insecure_set(True)
+             mqtt_client.tls_set(server_cert, client_cert, client_key)
+             mqtt_client.tls_insecure_set(True)
     
-    mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
+        mqtt_client.connect(srv_ip, srv_port, srv_keepalive, socket.gethostbyname(socket.gethostname()))
+    finally:
+        g_config['thr_lock'].release()
         
     scenario_config[count]['mqtt_client'] = mqtt_client
     
@@ -389,6 +390,13 @@ def load_scenario_config_v1():
             info_file = file_path + '_'.join(['info', sc_cfg['user_id'], sc_cfg['serial_no']]) + '.json'
             info_payload = get_info_payload(info_file)
             sc_cfg['info_payload'] = info_payload
+            
+            if len(g_config['user_auth_list']) != 0:
+                sc_cfg['user_auth_list'] = g_config['user_auth_list'][g_config['user_auth_index']]
+                sc_cfg['user_auth_index'] = g_config['user_auth_index']
+                g_config['user_auth_index'] = (g_config['user_auth_index'] + 1) % len(g_config['user_auth_list'])
+                #print 'sc config ', sc_cfg['user_auth_list']
+                #print 'sc index', sc_cfg['user_auth_index']
     
             scenario_config[str(scn_count)] = sc_cfg
             #print 'Adding scenario config: ', scn_count
@@ -417,9 +425,11 @@ def load_config(config_file, ap_offset):
 
     # create a lock
     g_config['thr_lock'] = threading.Lock()
+    ## Load user auth list if it is present
+    get_user_auth_list()
     
     # Scenario Specific Config
-    #load_scenario_config()
+    # load_scenario_config()
     load_scenario_config_v1()
 
 def publish_data(mqtt_client, topic, payload, mqtt_qos):
@@ -450,8 +460,16 @@ def run_scenario(count):
     
     ap_sno = scenario_config[scn_key]['serial_no'].strip()
     
-    #start_mqtt(scn_key,  'vne_' + mqtt_topic, ap_sno, ap_sno)
-    start_mqtt(scn_key,  'vne_' + mqtt_topic)
+    ## Get usernames and passwords if they are present 
+    uname = ""
+    passwd = ""
+    
+    if 'user_auth_list' in scenario_config[scn_key]:
+        uname = scenario_config[scn_key]['user_auth_list'][0]
+        passwd = scenario_config[scn_key]['user_auth_list'][1]
+        
+    start_mqtt(scn_key,  'vne_' + mqtt_topic, uname, passwd)
+    #start_mqtt(scn_key,  'vne_' + mqtt_topic)
     
     while True:
         scenario_config[scn_key]['last_msg_ts'] = int(time())
@@ -502,7 +520,31 @@ def start_scenario():
     for count in range(0, num_aps):
         g_ap_thr_list[count].join()
         
-
+def get_user_auth_list():
+    """
+    This function loads MQTT user auth params if they are present
+    """
+    global g_config
+    
+    uauth_file = g_config['user_auth_file']
+    
+    if os.path.exists(uauth_file) is False:
+        return False
+    
+    auth_list = []
+    with open(uauth_file,"r") as fp:
+        for line in fp:
+            line = line.rstrip('\n')
+            utmp = line.split(":")
+            auth_list.append(utmp)
+    
+    g_config['user_auth_list'] = auth_list
+    g_config['user_auth_index'] = 0
+    
+    return True
+        
+    
+    
 @route('/threads/active')
 def get_active_thread():
      return str(threading.active_count())

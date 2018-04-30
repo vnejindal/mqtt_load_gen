@@ -12,6 +12,7 @@
    "server_crt":"certs/root.crt",
    "client_crt":"certs/client.crt",
    "client_key":"certs/client.key",
+   "user_auth_file":"syn_file/user_auth.txt",
    "mqtt_topic_prefix":"VNE_REPORT",
    "scenarios":
    {
