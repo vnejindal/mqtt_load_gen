@@ -4,6 +4,7 @@
 """
 
 import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
 from bottle import route, run, Bottle
 
 
@@ -210,6 +211,12 @@ def process_report_payload(index):
     json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['BytesReceived'] = scenario_config[index]['BytesReceived']
     json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesSent'] = scenario_config[index]['BytesSent']
     json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesReceived'] = scenario_config[index]['BytesReceived']
+    
+    json_payload['result'][0]['DevList'][0]['Set'][0]['CpuUsage'] = randint(0,100)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][0]['RSSI'] = randint(-100,0)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][1]['RSSI'] = randint(-100,0)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][2]['RSSI'] = randint(-100,0)
+    
     
     scenario_config[index]['report_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
     
@@ -588,7 +595,7 @@ def start_rest_api_nmt():
     REST API interface function - non MT
     """
     global g_config
-    base_port = 2000
+    base_port = 1500
     port_num = base_port + int(g_config['ap_offset'])
     g_config['api_bottle_ip'] = 'localhost'
     g_config['api_bottle_port'] = port_num
@@ -603,7 +610,7 @@ def start_rest_api():
     REST API interface function 
     """
     global g_config
-    base_port = 2000
+    base_port = 1500
     port_num = base_port + int(g_config['ap_offset'])
     g_config['api_bottle_ip'] = 'localhost'
     g_config['api_bottle_port'] = port_num
