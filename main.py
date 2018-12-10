@@ -160,7 +160,7 @@ def init_scenario_config(index):
     scenario_config[index]['BytesReceived'] = randint(1, 100000)
     scenario_config[index]['mqtt_topic'] = '/'.join([g_config['mqtt_topic_prefix'], 
                            scenario_config[index]['user_id'].strip(), 
-                           scenario_config[index]['serial_no'].strip()])
+                           scenario_config[index]['user_id'].strip()])
     #Publish count from paho callback 
     scenario_config[index]['pub_cb_count'] = 0
     scenario_config[index]['pub_info_count'] = 0
@@ -256,6 +256,43 @@ def process_info_payload(index):
     scenario_config[index]['info_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
     #print 'sending info message: ', ts_start
     #vne::tbd, check if this can cause memory leak ! 
+
+
+def process_single_json_payload(index):
+    """
+    processes REPORT payload for its fields 
+    input - index - AP index
+    
+     -- Change all the required fields and return
+    """
+    global scenario_config
+    global g_config
+    
+    payload = scenario_config[index]['payload']
+    #payload is in string format, it needs to be converted into json format first
+    
+    json_payload = json.loads(payload)
+    
+    ts_start = int(time())
+    json_payload['SendingTime'] = int(ts_start)
+    json_payload['Equipments'][0]['Messages'][0]['Timestamp'] = json_payload['SendingTime']
+    
+    """    
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WAN']['BytesSent'] = scenario_config[index]['BytesSent']
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WAN']['BytesReceived'] = scenario_config[index]['BytesReceived']
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['BytesSent'] = scenario_config[index]['BytesSent']
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['BytesReceived'] = scenario_config[index]['BytesReceived']
+    json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesSent'] = scenario_config[index]['BytesSent']
+    json_payload['result'][0]['DevList'][0]['Set'][0]['MoCA'][0]['BytesReceived'] = scenario_config[index]['BytesReceived']
+    
+    json_payload['result'][0]['DevList'][0]['Set'][0]['CpuUsage'] = randint(0,100)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][0]['RSSI'] = randint(-100,0)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][1]['RSSI'] = randint(-100,0)
+    json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][2]['RSSI'] = randint(-100,0)
+    """
+    
+    scenario_config[index]['payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))    
+    
 
 def get_report_payload(file_name):
     """
@@ -419,6 +456,57 @@ def load_scenario_config_v1():
     #print 'Scenario config: ', scenario_config
     g_config['num_aps'] = len(scenario_config)  
 
+def load_scenario_config_single_json():
+    """
+    Loads scenario specific config files
+    v1 is for support of subscriber profiles 
+    """
+    global scenario_config
+    global g_config
+    
+    #change delim
+    delim = '/'
+    profile_file = g_config['scenarios']['path'] + delim + g_config['profile_prefix'] + str(g_config['num_aps']) + '.txt'
+    ap_offset = int(g_config['ap_offset'])
+    
+    sample_size = g_config['sample_size']
+    
+    profile_offset = (ap_offset - 1) * sample_size + 1
+    print 'Moving to offset: ', profile_offset
+        
+    fp_profile = open(profile_file, 'r')
+  
+    scn_count = 0
+    
+    for count in range(1, profile_offset):
+        fp_profile.readline()  
+    
+    for count in range(0, sample_size):
+        sc_cfg = {}
+        sc_cfg['user_id'] = fp_profile.readline().strip();
+        file_path = g_config['scenarios']['path'] + delim + 'singlejson' + delim      
+        report_file = file_path + '_'.join(['rgw', sc_cfg['user_id']]) + '.json'
+        report_payload = get_report_payload(report_file)
+        sc_cfg['payload'] = report_payload
+        
+        if len(g_config['user_auth_list']) != 0:
+            sc_cfg['user_auth_list'] = g_config['user_auth_list'][g_config['user_auth_index']]
+            sc_cfg['user_auth_index'] = g_config['user_auth_index']
+            g_config['user_auth_index'] = (g_config['user_auth_index'] + 1) % len(g_config['user_auth_list'])
+    
+        scenario_config[str(scn_count)] = sc_cfg
+        #print 'Adding scenario config: ', scn_count
+        #print scenario_config[str(scn_count)]
+        #print 'Starting SNO: ', sc_cfg['serial_no']
+        scn_count = scn_count + 1 
+        #print scenario_config
+    print 'Total profiles to run: ', len(scenario_config)
+    print 'Start UserId: ', scenario_config['0']['user_id'] 
+    print 'End UserId: ', scenario_config[str(scn_count - 1)]['user_id']
+    #print 'User list: ', userid_list
+    #print 'Sno list: ', sno_list
+    #print 'Scenario config: ', scenario_config
+    g_config['num_aps'] = len(scenario_config)  
 
 
 def load_config(config_file, ap_offset):
@@ -437,7 +525,8 @@ def load_config(config_file, ap_offset):
     
     # Scenario Specific Config
     # load_scenario_config()
-    load_scenario_config_v1()
+    #load_scenario_config_v1()
+    load_scenario_config_single_json()
 
 def publish_data(mqtt_client, topic, payload, mqtt_qos):
     """
@@ -457,15 +546,13 @@ def run_scenario(count):
     """
     global g_config
     global scenario_config
-    sleep_time = 58
+    sleep_time = g_config['frequency'] - 2
     
     scn_key = str(count)
     #print 'Scenario Started: ', count
         
     init_scenario_config(scn_key)
     mqtt_topic = scenario_config[scn_key]['mqtt_topic']
-    
-    ap_sno = scenario_config[scn_key]['serial_no'].strip()
     
     ## Get usernames and passwords if they are present 
     uname = ""
@@ -480,17 +567,18 @@ def run_scenario(count):
     
     while True:
         scenario_config[scn_key]['last_msg_ts'] = int(time())
-        process_report_payload(count)
-        #Requiremnt from Rohit: Keep Same timestamp in INFO & REPORT and send these two messages at same time
+        
+        process_single_json_payload(count)
+        #process_report_payload(count)
         scenario_config[scn_key]['pub_report_count'] += 1
-        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
+        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
         #sleep(0.1)
-        process_info_payload(count)
-        scenario_config[scn_key]['pub_info_count'] += 1
-        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
+        #process_info_payload(count)
+        #scenario_config[scn_key]['pub_info_count'] += 1
+        #publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
         sleep(sleep_time)
         ts_diff = int(time()) - scenario_config[scn_key]['last_msg_ts']
-        if ts_diff > 60 : 
+        if ts_diff > g_config['frequency'] : 
             print sleep_time, 'secs threshold exceeded for AP:', mqtt_topic, ts_diff
             
  
@@ -521,7 +609,7 @@ def start_scenario():
         ap_thread.start()
     
     #start_rest_api()
-    start_rest_api_nmt()
+    #start_rest_api_nmt()
 
     print 'joining threads'
     for count in range(0, num_aps):

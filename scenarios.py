@@ -86,10 +86,30 @@ def load_config(config_file):
     #print g_config
     
     
-def generate_userids(num_users, user_prefix):
+def generate_userids(num_users = 100000, user_prefix = 'SIMUL_V1_'):
     """
     vne::tbd to generate different userIds with provided user_prefix
     """
+    
+    global g_config
+    file_path = g_config['scenarios']['path']
+    
+    block_start = 10000001
+    prefix = user_prefix
+    id_file = prefix + str(num_users) + '.txt'
+    
+    
+    f_name = file_path + '\\' + id_file
+    print 'Writing user file: ' + f_name
+    fp = open(f_name, 'w')
+    
+    for count in range(block_start, block_start + num_users):
+        #print prefix + str(count)
+        fp.write(prefix + str(count) + '\n')
+    fp.close()
+    
+    g_config['singlejson']['userid_file'] = f_name
+    
     pass
 
 def generate_serialnos(num_users, sno_prefix):
@@ -120,6 +140,10 @@ def get_master_ext_json():
     master_rg_report = g_config['scenarios']['rg']['report']
     master_rg_report_json = get_json_config('\\'.join([file_path, master_rg_report]))
     g_config['master_rg_report_json'] = master_rg_report_json
+    
+    g_config['singlejson'] = {}
+    master_rg_single_json_path = g_config['scenarios']['single_json_file']
+    g_config['singlejson']['master_rg_json'] = get_json_config('\\'.join([file_path, master_rg_single_json_path]))
     
     g_config['scenarios']['ext']['path'] = g_config['scenarios']['path'] + '\\' + 'ext' + '\\'
     g_config['scenarios']['rg']['path'] = g_config['scenarios']['path'] + '\\' + 'rg' + '\\'
@@ -601,7 +625,109 @@ def generate_scenarios():
     
     fp_sno.close()
     fp_profile.close()
+
+def generate_scenarios_single_json():
+    """
+    It generates the scenarios based on loaded config
+    Based on Single JSON payload of RGW
+        
+    """    
+    global g_config
     
+    sno_file = g_config['singlejson']['userid_file']
+    fp_sno = open(sno_file, 'r')
+    
+    
+    '''
+    Open Single JSON master file: g_config['scenarios']['single_json_file']
+    Create a directory 'singlejson'
+    create rgw files in this directory for each g_config['singlejson']['userid_file']
+    
+    '''
+    
+    f_usrid = open(sno_file, 'r')
+    
+    for usrid in f_usrid:
+        userid = usrid.strip()
+        generate_ap_mac_blocks_single_json(16,userid)
+        generate_singlejson_payload(userid)
+    
+   
+
+def generate_ap_mac_blocks_single_json(block_size, usrid):
+    """
+    Generates mac address blocks from master file
+    block_size = number of MAC addresses in each block 
+    usrid = user id 
+    """
+    
+    print 'generating mac block for ', usrid
+    global g_config
+    num_aps = g_config['num_aps']
+    file_path = g_config['scenarios']['path']
+    
+    #Open Mac address files
+    mac_file = g_config['scenarios']['ap_mac_file']
+    mac_file_name = file_path + mac_file 
+    
+    if g_config['mac_file_index'] is 0:
+        fp_mac = open(mac_file_name)
+        g_config['mac_file_fp'] = fp_mac
+    else: 
+        fp_mac = g_config['mac_file_fp']
+    
+    g_config['mac_file_index'] += block_size
+    
+    f_name = file_path + '\\' + 'singlejson' + '\\' + '_'.join(['mac_block', usrid]) + '.txt'
+    fp_1 = open(f_name, 'w')
+    for count1 in range(0, block_size):
+        fp_1.write(fp_mac.readline())
+    fp_1.close()
+    print 'MAC block written for: ', f_name
+    
+
+
+def generate_singlejson_payload(user_id):
+    """
+  
+    """
+   
+    global g_config
+    
+    file_path = g_config['scenarios']['path']
+    m_sc_json = g_config['singlejson']['master_rg_json']
+    f_name = file_path + '\\singlejson\\' + '_'.join(['rgw', user_id]) + '.json'
+    
+    m_sc_json['UserId'] = user_id
+    m_sc_json['Equipments'][0]['SerialNumber'] = user_id
+        
+    #Open its mac block file 
+    f_mac_name = file_path + '\\singlejson\\' + '_'.join(['mac_block', user_id]) + '.txt'
+    fp_mac_name = open(f_mac_name, 'r')
+    
+    ### Assign addresses to each of Radio of Wifi Interface from its mac block
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['WAN']['MACAddress'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][0]['BSSID'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][1]['BSSID'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][2]['BSSID'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][3]['BSSID'] = fp_mac_name.readline().strip()
+    
+    m_sc_json['Equipments'][0]['Messages'][0]['Info']['MoCA'][0]['MACAddress'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['MACAddress'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][2]['MACAddress'] = fp_mac_name.readline().strip()
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][3]['MACAddress'] = fp_mac_name.readline().strip()
+    
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][0]['BSSID']
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][1]['BSSID']
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][2]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][2]['BSSID']
+    m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][3]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][3]['BSSID']
+        
+    fp_mac_name.close()
+    
+    write_json(f_name, m_sc_json)
+    print 'created scenario file: ', f_name
+      
                
 def main():
     config_file = 'config1.json'
@@ -609,8 +735,13 @@ def main():
     global g_config
     load_config(config_file)
     
-    ## New Version 
-    generate_scenarios()
+    generate_userids(g_config['num_aps'], g_config['profile_prefix'])
+    generate_scenarios_single_json()
+    
+    
+    
+    ## New Version - report + info based 
+    #generate_scenarios()
     
     ## Old version
     #generate_rg_scenarios(g_config['num_aps'])

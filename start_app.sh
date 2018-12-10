@@ -1,5 +1,5 @@
 #!/bin/bash
-for number in {23..40}
+for number in {1..1}
 do
 echo "Starting batch : $number "
 python2.7 main.py $number &
