@@ -197,8 +197,9 @@ def process_report_payload(index):
     
     json_payload = json.loads(payload)
     
-    ts_start = int(time())
+    ts_start = int(time()/60) #convert secs to minutes
     json_payload['id'] = int(ts_start)
+    json_payload['isp'] = g_config['isp']
     json_payload['result'][0]['TimestampStart'] = ts_start
     json_payload['result'][0]['TimestampEnd'] = ts_start
     
@@ -247,6 +248,7 @@ def process_info_payload(index):
     
     #copy the timestamp of REPORT Message
     json_payload['id'] = scenario_config[index]['timestamp'] 
+    json_payload['isp'] = g_config['isp']
     json_payload['result'][0]['Timestamp'] = scenario_config[index]['timestamp'] 
     
     #change Uptime
@@ -273,9 +275,10 @@ def process_single_json_payload(index):
     
     json_payload = json.loads(payload)
     
-    ts_start = int(time())
+    ts_start = int(time()/60) # convert secs to minutes
     json_payload['SendingTime'] = int(ts_start)
     json_payload['Equipments'][0]['Messages'][0]['Timestamp'] = json_payload['SendingTime']
+    json_payload['Equipments'][0]['ISP'] = g_config['isp']
     
     """    
     json_payload['result'][0]['DevList'][0]['Set'][0]['WAN']['BytesSent'] = scenario_config[index]['BytesSent']
@@ -466,7 +469,7 @@ def load_scenario_config_single_json():
     
     #change delim
     delim = '/'
-    profile_file = g_config['scenarios']['path'] + delim + g_config['profile_prefix'] + str(g_config['num_aps']) + '.txt'
+    profile_file = g_config['scenarios']['path'] + delim + g_config['profile_prefix_v4'] + str(g_config['num_aps']) + '.txt'
     ap_offset = int(g_config['ap_offset'])
     
     sample_size = g_config['sample_size']
@@ -492,6 +495,7 @@ def load_scenario_config_single_json():
         if len(g_config['user_auth_list']) != 0:
             sc_cfg['user_auth_list'] = g_config['user_auth_list'][g_config['user_auth_index']]
             sc_cfg['user_auth_index'] = g_config['user_auth_index']
+            #print 'user creds: ', sc_cfg['user_auth_list']
             g_config['user_auth_index'] = (g_config['user_auth_index'] + 1) % len(g_config['user_auth_list'])
     
         scenario_config[str(scn_count)] = sc_cfg
@@ -508,8 +512,64 @@ def load_scenario_config_single_json():
     #print 'Scenario config: ', scenario_config
     g_config['num_aps'] = len(scenario_config)  
 
+def load_scenario_config_json_v3():
+    """
+    For V3 jsons - info and report ; For verizon - no Ext. only RGWs    
+    """
+    global scenario_config
+    global g_config
+    
+    #change delim
+    delim = '/'
+    profile_file = g_config['scenarios']['path'] + delim + g_config['profile_prefix_v3'] + str(g_config['num_aps']) + '.txt'
+    ap_offset = int(g_config['ap_offset'])
+    
+    sample_size = g_config['sample_size']
+    
+    profile_offset = (ap_offset - 1) * sample_size + 1
+    print 'Moving to offset: ', profile_offset
+        
+    fp_profile = open(profile_file, 'r')
+  
+    scn_count = 0
+    
+    for count in range(1, profile_offset):
+        fp_profile.readline()  
+    
+    for count in range(0, sample_size):
+        sc_cfg = {}
+        sc_cfg['user_id'] = fp_profile.readline().strip();
+        file_path = g_config['scenarios']['path'] + delim + 'rg' + delim      
+        report_file = file_path + '_'.join(['report', sc_cfg['user_id'], sc_cfg['user_id']]) + '.json'
+        report_payload = get_report_payload(report_file)
+        sc_cfg['report_payload'] = report_payload
+        
+        info_file = file_path + '_'.join(['info', sc_cfg['user_id'], sc_cfg['user_id']]) + '.json'
+        info_payload = get_report_payload(info_file)
+        sc_cfg['info_payload'] = info_payload
+        
+        if len(g_config['user_auth_list']) != 0:
+            sc_cfg['user_auth_list'] = g_config['user_auth_list'][g_config['user_auth_index']]
+            sc_cfg['user_auth_index'] = g_config['user_auth_index']
+            #print 'user creds: ', sc_cfg['user_auth_list']
+            g_config['user_auth_index'] = (g_config['user_auth_index'] + 1) % len(g_config['user_auth_list'])
+    
+        scenario_config[str(scn_count)] = sc_cfg
+        #print 'Adding scenario config: ', scn_count
+        #print scenario_config[str(scn_count)]
+        #print 'Starting SNO: ', sc_cfg['serial_no']
+        scn_count = scn_count + 1 
+        #print scenario_config
+    print 'Total profiles to run: ', len(scenario_config)
+    print 'Start UserId: ', scenario_config['0']['user_id'] 
+    print 'End UserId: ', scenario_config[str(scn_count - 1)]['user_id']
+    #print 'User list: ', userid_list
+    #print 'Sno list: ', sno_list
+    #print 'Scenario config: ', scenario_config
+    g_config['num_aps'] = len(scenario_config)  
+    
 
-def load_config(config_file, ap_offset):
+def load_config(config_file, ap_offset, json_ver):
     """
     Loads the complete config at init time
     """
@@ -517,6 +577,7 @@ def load_config(config_file, ap_offset):
     g_config = get_json_config(config_file)
     #This offset will start AP with this number + num_aps to be executed in that process
     g_config['ap_offset'] = ap_offset
+    g_config['json_ver'] = json_ver
 
     # create a lock
     g_config['thr_lock'] = threading.Lock()
@@ -526,7 +587,14 @@ def load_config(config_file, ap_offset):
     # Scenario Specific Config
     # load_scenario_config()
     #load_scenario_config_v1()
-    load_scenario_config_single_json()
+    if g_config['json_ver'] == 'v4':
+        print 'loading v4 version scenarios'
+        load_scenario_config_single_json()
+    elif g_config['json_ver'] == 'v3':
+        print 'loading v3 version scenarios'
+        load_scenario_config_json_v3()
+    else:    
+        print 'Invalid version format', g_config['json_ver']
 
 def publish_data(mqtt_client, topic, payload, mqtt_qos):
     """
@@ -568,14 +636,19 @@ def run_scenario(count):
     while True:
         scenario_config[scn_key]['last_msg_ts'] = int(time())
         
-        process_single_json_payload(count)
-        #process_report_payload(count)
-        scenario_config[scn_key]['pub_report_count'] += 1
-        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
-        #sleep(0.1)
-        #process_info_payload(count)
-        #scenario_config[scn_key]['pub_info_count'] += 1
-        #publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
+        if g_config['json_ver'] == 'v4':
+            process_single_json_payload(count)
+            scenario_config[scn_key]['pub_report_count'] += 1
+            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
+        else: 
+            process_report_payload(count)
+            scenario_config[scn_key]['pub_report_count'] += 1
+            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
+            sleep(0.1)
+            process_info_payload(count)
+            scenario_config[scn_key]['pub_info_count'] += 1
+            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
+            
         sleep(sleep_time)
         ts_diff = int(time()) - scenario_config[scn_key]['last_msg_ts']
         if ts_diff > g_config['frequency'] : 
@@ -723,15 +796,16 @@ def run_rest_api(port_num):
 def main():
     
     global g_config
-    if len (sys.argv) != 2 :
-        print "Usage: python main.py <AP Offset>"
+    if len (sys.argv) != 3 :
+        print "Usage: python main.py <v3|v4> <AP Offset>"
         sys.exit(1)   
     
-    ap_offset = sys.argv[1]
+    json_ver = sys.argv[1]
+    ap_offset = sys.argv[2]
     config_file = 'config1.json'
 
 #    config_file = 'scenario.json'
-    load_config(config_file, ap_offset)
+    load_config(config_file, ap_offset, json_ver)
     
     start_scenario()
     

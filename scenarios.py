@@ -109,6 +109,7 @@ def generate_userids(num_users = 100000, user_prefix = 'SIMUL_V1_'):
     fp.close()
     
     g_config['singlejson']['userid_file'] = f_name
+    g_config['userid_file'] = f_name
     
     pass
 
@@ -379,10 +380,10 @@ def generate_user_rg_report_json(user_id,serial_no):
     m_sc_json['result'][0]['UserId'] = user_id
     m_sc_json['result'][0]['DevList'][0]['SerialNumber'] = serial_no
     
-    ## STALIST MACs DISTRIBUTION - 5 MACs per radio 
+    ## STALIST MACs DISTRIBUTION - 3 MACs per radio 
     #Hardcoded logic:: It assumes master report json contains 5 devices STA list per Radio 
     for count in range(0,2):
-        for count1 in range(0,5):
+        for count1 in range(0,3):
             m_sc_json['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][count]['SSID'][0]['STAList'][count1]['MACAddress'] = g_config['fp_sta'].readline().strip()
             #BSSIDs mapping between INFO and REPORT message
             bssids = get_ext_bssid_mappings(user_id,serial_no, 'rg')
@@ -626,6 +627,28 @@ def generate_scenarios():
     fp_sno.close()
     fp_profile.close()
 
+def generate_scenarios_v3_latest():
+    '''
+    this function generates scenario files for v3 latest jsons - info and report for verizon specific 
+    usecase, i.e. only RGWs, no extenders    
+    '''
+    global g_config
+    
+    sno_file = g_config['userid_file']
+    f_usrid = open(sno_file, 'r')
+    
+    for usrid in f_usrid:
+        uid = usrid.strip()
+       
+        generate_ap_mac_blocks_v1(16, uid, uid, 'rg')
+        print 'Residential Gateways (RGs):: generating info scenario for: ', uid, uid
+        generate_user_rg_info_json(uid, uid)
+        print 'Residential Gateways (RGs):: generating report scenario for: ', uid, uid 
+        generate_user_rg_report_json(uid, uid)
+       
+       
+    
+
 def generate_scenarios_single_json():
     """
     It generates the scenarios based on loaded config
@@ -635,8 +658,7 @@ def generate_scenarios_single_json():
     global g_config
     
     sno_file = g_config['singlejson']['userid_file']
-    fp_sno = open(sno_file, 'r')
-    
+      
     
     '''
     Open Single JSON master file: g_config['scenarios']['single_json_file']
@@ -735,10 +757,17 @@ def main():
     global g_config
     load_config(config_file)
     
+    '''
+    For single JSON scenario files 
+    '''
+    #generate_userids(g_config['num_aps'], g_config['profile_prefix'])
+    #generate_scenarios_single_json()
+    
+    
+    
+    # INFO + REPORT - v3 jsons - only RGW, no ext 
     generate_userids(g_config['num_aps'], g_config['profile_prefix'])
-    generate_scenarios_single_json()
-    
-    
+    generate_scenarios_v3_latest()
     
     ## New Version - report + info based 
     #generate_scenarios()
