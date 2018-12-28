@@ -197,7 +197,8 @@ def process_report_payload(index):
     
     json_payload = json.loads(payload)
     
-    ts_start = int(time()/60) #convert secs to minutes
+    ts_start = int(time()) #convert secs to minutes
+	ts_start = ts_start - ts_start % 60
     json_payload['id'] = int(ts_start)
     json_payload['isp'] = g_config['isp']
     json_payload['result'][0]['TimestampStart'] = ts_start
@@ -275,7 +276,8 @@ def process_single_json_payload(index):
     
     json_payload = json.loads(payload)
     
-    ts_start = int(time()/60) # convert secs to minutes
+    ts_start = int(time()) # convert secs to minutes
+	ts_start = ts_start - ts_start % 60
     json_payload['SendingTime'] = int(ts_start)
     json_payload['Equipments'][0]['Messages'][0]['Timestamp'] = json_payload['SendingTime']
     json_payload['Equipments'][0]['ISP'] = g_config['isp']
