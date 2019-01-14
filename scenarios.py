@@ -99,7 +99,8 @@ def generate_userids(num_users = 100000, user_prefix = 'SIMUL_V1_'):
     id_file = prefix + str(num_users) + '.txt'
     
     
-    f_name = file_path + '\\' + id_file
+    #Windows: f_name = file_path + '\\' + id_file
+    f_name = file_path + '/' + id_file
     print 'Writing user file: ' + f_name
     fp = open(f_name, 'w')
     
@@ -127,27 +128,34 @@ def get_master_ext_json():
     file_path = g_config['scenarios']['path']
     
     master_ext_report = g_config['scenarios']['ext']['report']
-    master_ext_report_json = get_json_config('\\'.join([file_path, master_ext_report]))
+    #windows: master_ext_report_json = get_json_config('\\'.join([file_path, master_ext_report]))
+    master_ext_report_json = get_json_config('/'.join([file_path, master_ext_report]))
     g_config['master_ext_report_json'] = master_ext_report_json
     
     master_ext_info = g_config['scenarios']['ext']['info']
-    master_ext_info_json = get_json_config('\\'.join([file_path, master_ext_info]))
+    #windows: master_ext_info_json = get_json_config('\\'.join([file_path, master_ext_info]))
+    master_ext_info_json = get_json_config('/'.join([file_path, master_ext_info]))
     g_config['master_ext_info_json'] = master_ext_info_json
     
     master_rg_info = g_config['scenarios']['rg']['info']
-    master_rg_info_json = get_json_config('\\'.join([file_path, master_rg_info]))
+    #windows: master_rg_info_json = get_json_config('\\'.join([file_path, master_rg_info]))
+    master_rg_info_json = get_json_config('/'.join([file_path, master_rg_info]))
     g_config['master_rg_info_json'] = master_rg_info_json
     
     master_rg_report = g_config['scenarios']['rg']['report']
-    master_rg_report_json = get_json_config('\\'.join([file_path, master_rg_report]))
+    #windows: master_rg_report_json = get_json_config('\\'.join([file_path, master_rg_report]))
+    master_rg_report_json = get_json_config('/'.join([file_path, master_rg_report]))
     g_config['master_rg_report_json'] = master_rg_report_json
     
     g_config['singlejson'] = {}
     master_rg_single_json_path = g_config['scenarios']['single_json_file']
-    g_config['singlejson']['master_rg_json'] = get_json_config('\\'.join([file_path, master_rg_single_json_path]))
+    #windows: g_config['singlejson']['master_rg_json'] = get_json_config('\\'.join([file_path, master_rg_single_json_path]))
+    g_config['singlejson']['master_rg_json'] = get_json_config('/'.join([file_path, master_rg_single_json_path]))
     
-    g_config['scenarios']['ext']['path'] = g_config['scenarios']['path'] + '\\' + 'ext' + '\\'
-    g_config['scenarios']['rg']['path'] = g_config['scenarios']['path'] + '\\' + 'rg' + '\\'
+    #windows: g_config['scenarios']['ext']['path'] = g_config['scenarios']['path'] + '\\' + 'ext' + '\\'
+    #windows: g_config['scenarios']['rg']['path'] = g_config['scenarios']['path'] + '\\' + 'rg' + '\\'
+    g_config['scenarios']['ext']['path'] = g_config['scenarios']['path'] + '/' + 'ext' + '/'
+    g_config['scenarios']['rg']['path'] = g_config['scenarios']['path'] + '/' + 'rg' + '/'
 
     print 'master jsons loaded '
     
@@ -166,7 +174,8 @@ def generate_user_ext_report_json(user_id,serial_no):
     
     file_path = g_config['scenarios']['path']
     m_sc_json = g_config['master_ext_report_json']
-    f_name = file_path + '\\ext\\' + '_'.join(['report', user_id, serial_no]) + '.json'
+    #windows: f_name = file_path + '\\ext\\' + '_'.join(['report', user_id, serial_no]) + '.json'
+    f_name = file_path + '/ext/' + '_'.join(['report', user_id, serial_no]) + '.json'
     
     m_sc_json['result'][0]['UserId'] = user_id
     m_sc_json['result'][0]['DevList'][0]['SerialNumber'] = serial_no
@@ -200,13 +209,15 @@ def generate_user_ext_info_json(user_id,serial_no):
     
     file_path = g_config['scenarios']['path']
     m_sc_json = g_config['master_ext_info_json']
-    f_name = file_path + '\\ext\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    #windows: f_name = file_path + '\\ext\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    f_name = file_path + '/ext/' + '_'.join(['info', user_id, serial_no]) + '.json'
     
     m_sc_json['result'][0]['UserId'] = user_id
     m_sc_json['result'][0]['DevInfo'][0]['SerialNumber'] = serial_no
     
     #Open its mac block file name as use pick its first two mac addresses
-    f_mac_name = file_path + '\\ext\\' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
+    #windows: f_mac_name = file_path + '\\ext\\' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
+    f_mac_name = file_path + '/ext/' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
     fp_mac_name = open(f_mac_name, 'r')
     
     ### Assign addresses to each of Radio of Wifi Interface from its mac block
@@ -343,7 +354,8 @@ def get_ext_bssid_mappings(user_id, serial_no, gw_type):
     global g_config
     
     file_path = g_config['scenarios']['path']
-    f_info_name = file_path + '\\' + gw_type + '\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    #windows: f_info_name = file_path + '\\' + gw_type + '\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    f_info_name = file_path + '/' + gw_type + '/' + '_'.join(['info', user_id, serial_no]) + '.json'
     
     info_json = get_json_config(f_info_name)
     bssid0 = info_json['result'][0]['DevInfo'][0]['WiFi']['Radio'][0]['SSID'][0]['BSSID']
@@ -375,16 +387,20 @@ def generate_user_rg_report_json(user_id,serial_no):
     
     file_path = g_config['scenarios']['path']
     m_sc_json = g_config['master_rg_report_json']
-    f_name = file_path + '\\rg\\' + '_'.join(['report', user_id, serial_no]) + '.json'
+    #windows: f_name = file_path + '\\rg\\' + '_'.join(['report', user_id, serial_no]) + '.json'
+    f_name = file_path + '/rg/' + '_'.join(['report', user_id, serial_no]) + '.json'
     
     m_sc_json['result'][0]['UserId'] = user_id
     m_sc_json['result'][0]['DevList'][0]['SerialNumber'] = serial_no
     
     ## STALIST MACs DISTRIBUTION - 3 MACs per radio 
     #Hardcoded logic:: It assumes master report json contains 5 devices STA list per Radio 
+    hindex = 0
     for count in range(0,2):
-        for count1 in range(0,3):
+        for count1 in range(0,5):
             m_sc_json['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][count]['SSID'][0]['STAList'][count1]['MACAddress'] = g_config['fp_sta'].readline().strip()
+            m_sc_json['result'][0]['DevList'][0]['Set'][0]['HostsList'][hindex]['MACAddress'] = m_sc_json['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][count]['SSID'][0]['STAList'][count1]['MACAddress']
+            hindex += 1
             #BSSIDs mapping between INFO and REPORT message
             bssids = get_ext_bssid_mappings(user_id,serial_no, 'rg')
             m_sc_json['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][count]['SSID'][0]['STAList'][count1]['BSSID'] = bssids[count]
@@ -449,13 +465,15 @@ def generate_user_rg_info_json(user_id,serial_no):
     
     file_path = g_config['scenarios']['path']
     m_sc_json = g_config['master_rg_info_json']
-    f_name = file_path + '\\rg\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    #windows: f_name = file_path + '\\rg\\' + '_'.join(['info', user_id, serial_no]) + '.json'
+    f_name = file_path + '/rg/' + '_'.join(['info', user_id, serial_no]) + '.json'
     
     m_sc_json['result'][0]['UserId'] = user_id
     m_sc_json['result'][0]['DevInfo'][0]['SerialNumber'] = serial_no
     
     #Open its mac block file name as use pick its first two mac addresses
-    f_mac_name = file_path + '\\rg\\' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
+    #windows: f_mac_name = file_path + '\\rg\\' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
+    f_mac_name = file_path + '/rg/' + '_'.join(['mac_block', user_id, serial_no]) + '.txt'
     fp_mac_name = open(f_mac_name, 'r')
     
     ### Assign addresses to each of Radio of Wifi Interface from its mac block
@@ -545,7 +563,8 @@ def generate_ap_mac_blocks(block_size):
     for count in range(0, num_aps):
         uid = fp_uid.readline().strip()
         sno = fp_sno.readline().strip()
-        f_name = file_path + '\\ext\\' + '_'.join(['mac_block', uid, sno]) + '.txt'
+        #windows: f_name = file_path + '\\ext\\' + '_'.join(['mac_block', uid, sno]) + '.txt'
+        f_name = file_path + '/ext/' + '_'.join(['mac_block', uid, sno]) + '.txt'
         fp_1 = open(f_name, 'w')
         for count1 in range(0, block_size):
             fp_1.write(fp_mac.readline())
@@ -581,7 +600,8 @@ def generate_ap_mac_blocks_v1(block_size, usrid, srlno, gwtype):
     
     g_config['mac_file_index'] += block_size
     
-    f_name = file_path + '\\' + gwtype + '\\' + '_'.join(['mac_block', usrid, srlno]) + '.txt'
+    #windows: f_name = file_path + '\\' + gwtype + '\\' + '_'.join(['mac_block', usrid, srlno]) + '.txt'
+    f_name = file_path + '/' + gwtype + '/' + '_'.join(['mac_block', usrid, srlno]) + '.txt'
     fp_1 = open(f_name, 'w')
     for count1 in range(0, block_size):
         fp_1.write(fp_mac.readline())
@@ -597,7 +617,8 @@ def generate_scenarios():
     global g_config
     
     profiles = g_config['scenarios']['profiles']
-    profile_path= 'syn_file\\scenarios\\profiles\\'
+    #windows: profile_path= 'syn_file\\scenarios\\profiles\\'
+    profile_path= 'syn_file/scenarios/profiles/'
     
     sno_file = g_config['serial_nums']
     fp_sno = open(sno_file, 'r')
@@ -640,7 +661,7 @@ def generate_scenarios_v3_latest():
     for usrid in f_usrid:
         uid = usrid.strip()
        
-        generate_ap_mac_blocks_v1(16, uid, uid, 'rg')
+        generate_ap_mac_blocks_v1(5, uid, uid, 'rg')
         print 'Residential Gateways (RGs):: generating info scenario for: ', uid, uid
         generate_user_rg_info_json(uid, uid)
         print 'Residential Gateways (RGs):: generating report scenario for: ', uid, uid 
@@ -700,7 +721,8 @@ def generate_ap_mac_blocks_single_json(block_size, usrid):
     
     g_config['mac_file_index'] += block_size
     
-    f_name = file_path + '\\' + 'singlejson' + '\\' + '_'.join(['mac_block', usrid]) + '.txt'
+    #windows: f_name = file_path + '\\' + 'singlejson' + '\\' + '_'.join(['mac_block', usrid]) + '.txt'
+    f_name = file_path + '/' + 'singlejson' + '/' + '_'.join(['mac_block', usrid]) + '.txt'
     fp_1 = open(f_name, 'w')
     for count1 in range(0, block_size):
         fp_1.write(fp_mac.readline())
@@ -718,13 +740,15 @@ def generate_singlejson_payload(user_id):
     
     file_path = g_config['scenarios']['path']
     m_sc_json = g_config['singlejson']['master_rg_json']
-    f_name = file_path + '\\singlejson\\' + '_'.join(['rgw', user_id]) + '.json'
+    #f_name = file_path + '\\singlejson\\' + '_'.join(['rgw', user_id]) + '.json'
+    f_name = file_path + '/singlejson/' + '_'.join(['rgw', user_id]) + '.json'
     
     m_sc_json['UserId'] = user_id
     m_sc_json['Equipments'][0]['SerialNumber'] = user_id
         
     #Open its mac block file 
-    f_mac_name = file_path + '\\singlejson\\' + '_'.join(['mac_block', user_id]) + '.txt'
+    #f_mac_name = file_path + '\\singlejson\\' + '_'.join(['mac_block', user_id]) + '.txt'
+    f_mac_name = file_path + '/singlejson/' + '_'.join(['mac_block', user_id]) + '.txt'
     fp_mac_name = open(f_mac_name, 'r')
     
     ### Assign addresses to each of Radio of Wifi Interface from its mac block
