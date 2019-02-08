@@ -1,10 +1,11 @@
 #!/bin/bash
 
 set +x
-NUM_CONTAINER=11 #Number for r5.4x instance
+NUM_CONTAINER=13 #Number for r5.4x instance
 LOAD_OFFSET=65
 TOOL_SINDEX=1
-TOOL_EINDEX=${LOAD_OFFSET}
+TOOL_EINDEX=$(expr ${TOOL_SINDEX} + ${LOAD_OFFSET})
+#TOOL_EINDEX=${LOAD_OFFSET}
 WORKDIR=${PWD}
 #WORKDIR=/home/ubuntu/1m7_mqtt_load_gen
 ITER_SLEEP_TIME_SEC=$(expr ${LOAD_OFFSET} \* 10 + 300)  #Total time to launch a load in single container

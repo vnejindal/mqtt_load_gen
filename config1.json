@@ -1,17 +1,18 @@
 {
    "_comment":"Configuration File for MQTT LOAD TEST TOOL",
-   "broker_ip":"load.iot83.com",
+   "old_broker_ip":"3.88.44.86",
+   "broker_ip":"prod-ha32.iot83.com",
    "broker_port":1883,
    "qos":0,
-   "keep_alive":90,
+   "keep_alive":300,
    "clean_session":0,
-   "num_aps": 200000,
+   "num_aps": 1000000,
    "sample_size": 300,
-   "profile_prefix": "SIMUL_V3_",
+   "profile_prefix": "SIMUL_1V7_",
    "profile_prefix_v4": "SIMUL_V1_",
-   "profile_prefix_v3": "SIMUL_V3_",
-   "isp": "verizon",
-   "frequency": 60,
+   "profile_prefix_v3": "SIMUL_1V7_",
+   "isp": "83incs",
+   "frequency":1800,
    "user_ids":"syn_file/userids1.txt",
    "serial_nums":"syn_file/serialnum1.txt",
    "tls_enabled":0,
@@ -20,6 +21,22 @@
    "client_key":"certs/client.key",
    "user_auth_file":"syn_file/user_auth.txt",
    "mqtt_topic_prefix":"REPORT",
+   "steering_evt":
+   {
+       "enabled":1,
+       "percent":100,
+       "frequency": 60,
+       "type":
+       {
+          "evid_assoc": 1,
+          "evid_staroam": 1,
+          "evid_staconnect": 1,
+          "sta_file_path":"syn_file/scenarios/",
+          "sta_evid_assoc_file":"master_sta_evid_assoc.txt",
+          "sta_evid_staroam_file": "master_sta_evid_staroam.txt",
+          "sta_evid_staconnect_file":"master_sta_evid_staconnect.txt"           
+        }          
+   },
    "scenarios":
    {
    		"path":"syn_file/scenarios/",

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":787878,"sugActType": "Abs","isp": "centurylink","result": {"UserId": "GCBA8100100066","event":"ABS_EVID_ASSOC","Timestamp":1546419187, "SerialNumber":"GCBA8100100066","MACAddress":"9c:e3:3f:74:19:69","BSSID":"9c:1e:95:03:af:64","BAND":1,"ASSOC":0}}

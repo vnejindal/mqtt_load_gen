@@ -116,7 +116,7 @@ def start_mqtt(count, client_id, username = "", password = ""):
     scenario_config[count]['mqtt_client'] = mqtt_client
     
     #mqtt_client.loop_forever()
-    mqtt_client.loop_start()
+    #mqtt_client.loop_start()
     #dpublish.read_device_data('temperature', '1', client)
 
 ####### COMMON UTILITY FUNCTIONS ########
@@ -166,6 +166,8 @@ def init_scenario_config(index):
     scenario_config[index]['pub_info_count'] = 0
     scenario_config[index]['pub_report_count'] = 0
 
+   
+
 def get_info_payload(file_name):
     """
     vne::tbd:: hardcoded functions...to be replaced later with better functions
@@ -181,6 +183,9 @@ def get_info_payload(file_name):
     finally:
         fp.close()
     return line
+
+def get_steering_payload(file_name):
+    return get_info_payload(file_name)
 
 def process_report_payload(index):
     """
@@ -198,7 +203,7 @@ def process_report_payload(index):
     json_payload = json.loads(payload)
     
     ts_start = int(time()) #convert secs to minutes
-	ts_start = ts_start - ts_start % 60
+    ts_start = ts_start - ts_start%60
     json_payload['id'] = int(ts_start)
     json_payload['isp'] = g_config['isp']
     json_payload['result'][0]['TimestampStart'] = ts_start
@@ -219,6 +224,14 @@ def process_report_payload(index):
     json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][1]['RSSI'] = randint(-100,0)
     json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][2]['RSSI'] = randint(-100,0)
     
+    ## Fields filled to be used for Steering event message
+    if g_config['steering_evt']['enabled'] is 1 and scenario_config[index]['steering']['ready'] is 0:
+        scenario_config[index]['steering']['ready'] = 1
+        scenario_config[index]['steering']['UserId'] = json_payload['result'][0]['UserId']
+        #Transition of STA0 from 2.4G to 5G 
+        scenario_config[index]['steering']['MACAddress'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][0]['MACAddress']
+        scenario_config[index]['steering']['BSSID'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][1]['SSID'][0]['STAList'][0]['BSSID']
+        #print 'set ready for ', index
     
     scenario_config[index]['report_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
     
@@ -277,7 +290,7 @@ def process_single_json_payload(index):
     json_payload = json.loads(payload)
     
     ts_start = int(time()) # convert secs to minutes
-	ts_start = ts_start - ts_start % 60
+    ts_start = ts_start - ts_start%60
     json_payload['SendingTime'] = int(ts_start)
     json_payload['Equipments'][0]['Messages'][0]['Timestamp'] = json_payload['SendingTime']
     json_payload['Equipments'][0]['ISP'] = g_config['isp']
@@ -569,7 +582,43 @@ def load_scenario_config_json_v3():
     #print 'Sno list: ', sno_list
     #print 'Scenario config: ', scenario_config
     g_config['num_aps'] = len(scenario_config)  
+
+
+def load_steering_evt_files():
+    """
+    This function loads steering event files for sending    
+    """
+    global g_config
+    global scenario_config
     
+    #change delim
+    delim = '/'
+    sta_evid_assoc_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_assoc_file']])
+    sta_evid_staroam_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_staroam_file']])
+    sta_evid_staconnect_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_staconnect_file']])
+    
+    g_config['steering_evt']['evid_assoc_msg'] = get_steering_payload(sta_evid_assoc_file)
+    #g_config['steering_evt']['evid_staroam_msg'] = get_json_config(sta_evid_staroam_file)
+    #g_config['steering_evt']['evid_staconnect_msg'] = get_json_config(sta_evid_staconnect_file)
+    
+    #Now distribute steering config to scenario files
+    sample_size = g_config['sample_size']
+    steering_percentage = g_config['steering_evt']['percent']
+    
+    for count in range(0, sample_size):
+        scenario_config[str(count)]['steering'] = {}
+        scenario_config[str(count)]['steering']['enabled'] = 0
+        # This field will be used for filling info like userId, mac address etc from report msg. 
+        #The message will ready to be sent only after this information is present
+        scenario_config[str(count)]['steering']['ready'] = 0
+    
+    steering_size = sample_size * steering_percentage/100
+    for count in range(0, steering_size):
+        #print 'enabled steering for ', count, steering_size
+        scenario_config[str(count)]['steering']['enabled'] = 1
+        scenario_config[str(count)]['steering']['evid_assoc_msg'] = g_config['steering_evt']['evid_assoc_msg']
+        #scenario_config[count]['steering']['evid_staroam_msg'] = g_config['steering_evt']['evid_staroam_msg']
+        #scenario_config[count]['steering']['evid_staconnect_msg'] = g_config['steering_evt']['evid_staconnect_msg']
 
 def load_config(config_file, ap_offset, json_ver):
     """
@@ -585,6 +634,11 @@ def load_config(config_file, ap_offset, json_ver):
     g_config['thr_lock'] = threading.Lock()
     ## Load user auth list if it is present
     get_user_auth_list()
+
+    #Change threading stack size
+    print 'Current Thread stack size ', threading.stack_size()
+    threading.stack_size(64*1024) #64KB
+    print 'New Thread stack size ', threading.stack_size()
     
     # Scenario Specific Config
     # load_scenario_config()
@@ -597,7 +651,13 @@ def load_config(config_file, ap_offset, json_ver):
         load_scenario_config_json_v3()
     else:    
         print 'Invalid version format', g_config['json_ver']
-
+        
+    #Load steering event files 
+    if g_config['steering_evt']['enabled'] is 1:
+        #print 'load steering event files...'
+        load_steering_evt_files()
+        
+        
 def publish_data(mqtt_client, topic, payload, mqtt_qos):
     """
     MQTT Publish with specified QoS 
@@ -609,15 +669,54 @@ def publish_data(mqtt_client, topic, payload, mqtt_qos):
     #(rc, mid) = mqtt_client.publish(topic, 'mqtt_test_tool', qos=1)
     
 #    print 'published: ', rc, mid
+
+
+def publish_steering_events(scn_key, mqtt_topic, qos):
+    """
+    Check and if required publish steering event
+    """
+    global g_config
+    global scenario_config
     
+    if scenario_config[scn_key]['steering']['enabled'] is not 1:
+        #print 'steering not enabled ', scn_key
+        return
+    if scenario_config[scn_key]['steering']['ready'] is not 1: 
+        #print 'steering not ready ', scn_key
+        return
+    
+    ts_start = int(time()) #convert secs to minutes
+    ts_start = ts_start - ts_start%60
+    
+    #Convert msg into JSON 
+    #steering msg already is into json format
+    if g_config['steering_evt']['type']['evid_assoc'] is 1:
+        #print 'sending steering event for ', scn_key, scenario_config[scn_key]['steering']['UserId']
+        json_payload = json.loads(scenario_config[scn_key]['steering']['evid_assoc_msg'])
+        json_payload['id'] = int(ts_start)
+        json_payload['isp'] = g_config['isp']
+        json_payload['result']['UserId'] = scenario_config[scn_key]['steering']['UserId']
+        json_payload['result']['SerialNumber'] = scenario_config[scn_key]['steering']['UserId']
+        json_payload['result']['MACAddress'] = scenario_config[scn_key]['steering']['MACAddress']
+        json_payload['result']['BSSID'] = scenario_config[scn_key]['steering']['BSSID']
+        json_payload['result']['Timestamp'] = int(ts_start)
+        #Change msg back into string
+        #scenario_config[scn_key]['steering']['evid_assoc_msg'] = json.dumps(json_payload, indent=None, separators=(',',':'))
+        #publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['steering']['evid_assoc_msg'], qos)
+        str_payload = json.dumps(json_payload, indent=None, separators=(',',':'))
+        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, str_payload, qos)
+    
+ 
 def run_scenario(count):
     """
     Thread entry point that actually runs the scenario
     """
     global g_config
     global scenario_config
-    sleep_time = g_config['frequency'] - 2
+    rfrequency = g_config['frequency'] - 2
+    sfrequency = g_config['steering_evt']['frequency']
     
+    scenario_start = 0
     scn_key = str(count)
     #print 'Scenario Started: ', count
         
@@ -634,28 +733,50 @@ def run_scenario(count):
         
     start_mqtt(scn_key,  'vne_' + mqtt_topic, uname, passwd)
     #start_mqtt(scn_key,  'vne_' + mqtt_topic)
+
+    ctime = scenario_config[scn_key]['last_msg_ts'] = int(time())
+    if g_config['steering_evt']['enabled'] is 1:
+        scenario_config[scn_key]['steering']['last_msg_ts'] = ctime
     
     while True:
-        scenario_config[scn_key]['last_msg_ts'] = int(time())
+
+        ctime = int(time())
         
-        if g_config['json_ver'] == 'v4':
-            process_single_json_payload(count)
-            scenario_config[scn_key]['pub_report_count'] += 1
-            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
-        else: 
-            process_report_payload(count)
-            scenario_config[scn_key]['pub_report_count'] += 1
-            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
-            sleep(0.1)
-            process_info_payload(count)
-            scenario_config[scn_key]['pub_info_count'] += 1
-            publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
+        #print "publishing data thread ", count, ctime, ltime 
+
+        if (ctime - scenario_config[scn_key]['last_msg_ts']) > rfrequency or scenario_start is 0:
+            #print "publishing info/report data ", count, ctime, scenario_config[scn_key]['last_msg_ts'], rfrequency
+            scenario_start = 1
+            scenario_config[scn_key]['last_msg_ts'] = int(ctime)
+            if g_config['json_ver'] == 'v4':
+                process_single_json_payload(count)
+                scenario_config[scn_key]['pub_report_count'] += 1
+                publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
+            else: 
+                process_report_payload(count)
+                scenario_config[scn_key]['pub_report_count'] += 1
+                publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
+                sleep(0.1)
+                process_info_payload(count)
+                scenario_config[scn_key]['pub_info_count'] += 1
+                publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
+        
+        if g_config['steering_evt']['enabled'] is 1 and (ctime - scenario_config[scn_key]['steering']['last_msg_ts']) > sfrequency:
+            #print "publishing steering data ", count, ctime, scenario_config[scn_key]['steering']['last_msg_ts'], sfrequency
+            scenario_config[scn_key]['steering']['last_msg_ts'] = int(ctime)
+            publish_steering_events(scn_key, mqtt_topic, g_config['qos'])
             
-        sleep(sleep_time)
+        scenario_config[scn_key]['mqtt_client'].loop()
+
+        sleep(1)
+        
+        '''
+        #NOT REQUIRED FOR NOW    
+        sleep(rfrequency)
         ts_diff = int(time()) - scenario_config[scn_key]['last_msg_ts']
         if ts_diff > g_config['frequency'] : 
             print sleep_time, 'secs threshold exceeded for AP:', mqtt_topic, ts_diff
-            
+        '''    
  
     
 def start_scenario():
@@ -778,10 +899,10 @@ def start_rest_api():
     g_config['api_bottle_ip'] = 'localhost'
     g_config['api_bottle_port'] = port_num
     
-    api_thread = threading.Thread(target=run_rest_api, args=(port_num,))
-    g_config['api_thread_id'] = api_thread
-    api_thread.start()
-    api_thread.join()
+#    api_thread = threading.Thread(target=run_rest_api, args=(port_num,))
+#    g_config['api_thread_id'] = api_thread
+#    api_thread.start()
+#    api_thread.join()
 
 
 def run_rest_api(port_num):
