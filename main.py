@@ -44,7 +44,7 @@ scenario_config = {}
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
-    #print("Connected with result code "+str(rc))
+    #print("Connected with result code "+str(rc) + client)
         
     global mqtt_rc_codes
     #if rc == 0:
@@ -59,7 +59,7 @@ def on_connect(client, userdata, flags, rc):
     
 def on_disconnect(client, userdata, rc):
     if rc == 0:
-        print 'Client disconnected successfully'
+        print 'Client disconnected successfully '
     else:
         print 'Client disconnection issue: ', str(rc)
 
@@ -116,7 +116,7 @@ def start_mqtt(count, client_id, username = "", password = ""):
     scenario_config[count]['mqtt_client'] = mqtt_client
     
     #mqtt_client.loop_forever()
-    #mqtt_client.loop_start()
+    mqtt_client.loop_start()
     #dpublish.read_device_data('temperature', '1', client)
 
 ####### COMMON UTILITY FUNCTIONS ########
@@ -185,7 +185,8 @@ def get_info_payload(file_name):
     return line
 
 def get_steering_payload(file_name):
-    return get_info_payload(file_name)
+    return get_json_config(file_name)
+    #return get_info_payload(file_name)
 
 def process_report_payload(index):
     """
@@ -231,6 +232,12 @@ def process_report_payload(index):
         #Transition of STA0 from 2.4G to 5G 
         scenario_config[index]['steering']['MACAddress'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][0]['MACAddress']
         scenario_config[index]['steering']['BSSID'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][1]['SSID'][0]['STAList'][0]['BSSID']
+        j_payload = scenario_config[index]['steering']['evid_assoc_msg']
+        j_payload['isp'] = g_config['isp']
+        j_payload['result']['UserId'] = scenario_config[index]['steering']['UserId']
+        j_payload['result']['SerialNumber'] = scenario_config[index]['steering']['UserId']
+        j_payload['result']['MACAddress'] = scenario_config[index]['steering']['MACAddress']
+        j_payload['result']['BSSID'] = scenario_config[index]['steering']['BSSID']
         #print 'set ready for ', index
     
     scenario_config[index]['report_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
@@ -692,17 +699,10 @@ def publish_steering_events(scn_key, mqtt_topic, qos):
     #steering msg already is into json format
     if g_config['steering_evt']['type']['evid_assoc'] is 1:
         #print 'sending steering event for ', scn_key, scenario_config[scn_key]['steering']['UserId']
-        json_payload = json.loads(scenario_config[scn_key]['steering']['evid_assoc_msg'])
+        json_payload = scenario_config[scn_key]['steering']['evid_assoc_msg']
         json_payload['id'] = int(ts_start)
-        json_payload['isp'] = g_config['isp']
-        json_payload['result']['UserId'] = scenario_config[scn_key]['steering']['UserId']
-        json_payload['result']['SerialNumber'] = scenario_config[scn_key]['steering']['UserId']
-        json_payload['result']['MACAddress'] = scenario_config[scn_key]['steering']['MACAddress']
-        json_payload['result']['BSSID'] = scenario_config[scn_key]['steering']['BSSID']
         json_payload['result']['Timestamp'] = int(ts_start)
         #Change msg back into string
-        #scenario_config[scn_key]['steering']['evid_assoc_msg'] = json.dumps(json_payload, indent=None, separators=(',',':'))
-        #publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['steering']['evid_assoc_msg'], qos)
         str_payload = json.dumps(json_payload, indent=None, separators=(',',':'))
         publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, str_payload, qos)
     
@@ -766,7 +766,7 @@ def run_scenario(count):
             scenario_config[scn_key]['steering']['last_msg_ts'] = int(ctime)
             publish_steering_events(scn_key, mqtt_topic, g_config['qos'])
             
-        scenario_config[scn_key]['mqtt_client'].loop()
+        #scenario_config[scn_key]['mqtt_client'].loop()
 
         sleep(1)
         
