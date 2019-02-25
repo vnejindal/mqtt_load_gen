@@ -18,6 +18,8 @@ from time import time
 #from threading import Thread
 import threading
 import user
+import copy
+import signal
 from __builtin__ import False
 
 
@@ -232,12 +234,13 @@ def process_report_payload(index):
         #Transition of STA0 from 2.4G to 5G 
         scenario_config[index]['steering']['MACAddress'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][0]['SSID'][0]['STAList'][0]['MACAddress']
         scenario_config[index]['steering']['BSSID'] = json_payload['result'][0]['DevList'][0]['Set'][0]['WiFi']['Radio'][1]['SSID'][0]['STAList'][0]['BSSID']
-        j_payload = scenario_config[index]['steering']['evid_assoc_msg']
-        j_payload['isp'] = g_config['isp']
-        j_payload['result']['UserId'] = scenario_config[index]['steering']['UserId']
-        j_payload['result']['SerialNumber'] = scenario_config[index]['steering']['UserId']
-        j_payload['result']['MACAddress'] = scenario_config[index]['steering']['MACAddress']
-        j_payload['result']['BSSID'] = scenario_config[index]['steering']['BSSID']
+        for evt_type in ['evid_assoc', 'evid_staconnect']:
+            j_payload = scenario_config[index]['steering'][evt_type]['payload']
+            j_payload['isp'] = g_config['isp']
+            j_payload['result']['UserId'] = scenario_config[index]['steering']['UserId']
+            j_payload['result']['SerialNumber'] = scenario_config[index]['steering']['UserId']
+            j_payload['result']['MACAddress'] = scenario_config[index]['steering']['MACAddress']
+            j_payload['result']['BSSID'] = scenario_config[index]['steering']['BSSID']
         #print 'set ready for ', index
     
     scenario_config[index]['report_payload'] = json.dumps(json_payload, indent=None, separators=(',',':'))
@@ -600,13 +603,15 @@ def load_steering_evt_files():
     
     #change delim
     delim = '/'
-    sta_evid_assoc_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_assoc_file']])
-    sta_evid_staroam_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_staroam_file']])
-    sta_evid_staconnect_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_staconnect_file']])
+    sta_evid_assoc_file = delim.join([g_config['steering_evt']['sta_file_path'], g_config['steering_evt']['type']['evid_assoc']['sta_evid_assoc_file']])
+    #print sta_evid_assoc_file 
+    sta_evid_staconnect_file = delim.join([g_config['steering_evt']['sta_file_path'], g_config['steering_evt']['type']['evid_staconnect']['sta_evid_staconnect_file']])
+    #print sta_evid_staconnect_file 
+    #sta_evid_staroam_file = delim.join([g_config['steering_evt']['type']['sta_file_path'], g_config['steering_evt']['type']['sta_evid_staroam_file']])
     
     g_config['steering_evt']['evid_assoc_msg'] = get_steering_payload(sta_evid_assoc_file)
+    g_config['steering_evt']['evid_staconnect_msg'] = get_json_config(sta_evid_staconnect_file)
     #g_config['steering_evt']['evid_staroam_msg'] = get_json_config(sta_evid_staroam_file)
-    #g_config['steering_evt']['evid_staconnect_msg'] = get_json_config(sta_evid_staconnect_file)
     
     #Now distribute steering config to scenario files
     sample_size = g_config['sample_size']
@@ -614,6 +619,8 @@ def load_steering_evt_files():
     
     for count in range(0, sample_size):
         scenario_config[str(count)]['steering'] = {}
+        scenario_config[str(count)]['steering']['evid_assoc'] = {}
+        scenario_config[str(count)]['steering']['evid_staconnect'] = {}
         scenario_config[str(count)]['steering']['enabled'] = 0
         # This field will be used for filling info like userId, mac address etc from report msg. 
         #The message will ready to be sent only after this information is present
@@ -622,10 +629,16 @@ def load_steering_evt_files():
     steering_size = sample_size * steering_percentage/100
     for count in range(0, steering_size):
         #print 'enabled steering for ', count, steering_size
-        scenario_config[str(count)]['steering']['enabled'] = 1
-        scenario_config[str(count)]['steering']['evid_assoc_msg'] = g_config['steering_evt']['evid_assoc_msg']
-        #scenario_config[count]['steering']['evid_staroam_msg'] = g_config['steering_evt']['evid_staroam_msg']
-        #scenario_config[count]['steering']['evid_staconnect_msg'] = g_config['steering_evt']['evid_staconnect_msg']
+        index = str(count)
+        scenario_config[index]['steering']['enabled'] = 1
+        scenario_config[index]['steering']['evid_assoc']['payload'] = copy.deepcopy(g_config['steering_evt']['evid_assoc_msg'])
+        scenario_config[index]['steering']['evid_assoc']['enabled'] = g_config['steering_evt']['type']['evid_assoc']['enabled']
+        scenario_config[index]['steering']['evid_assoc']['frequency'] = g_config['steering_evt']['type']['evid_assoc']['frequency']
+        #evid_staconnect 
+        scenario_config[index]['steering']['evid_staconnect']['payload'] = copy.deepcopy(g_config['steering_evt']['evid_staconnect_msg'])
+        scenario_config[index]['steering']['evid_staconnect']['enabled'] = g_config['steering_evt']['type']['evid_staconnect']['enabled']
+        scenario_config[index]['steering']['evid_staconnect']['frequency'] = g_config['steering_evt']['type']['evid_staconnect']['frequency']
+        #scenario_config[index]['steering']['evid_staroam_msg'] = g_config['steering_evt']['evid_staroam_msg']
 
 def load_config(config_file, ap_offset, json_ver):
     """
@@ -678,7 +691,7 @@ def publish_data(mqtt_client, topic, payload, mqtt_qos):
 #    print 'published: ', rc, mid
 
 
-def publish_steering_events(scn_key, mqtt_topic, qos):
+def publish_steering_events(scn_key, mqtt_topic, qos, evt_type):
     """
     Check and if required publish steering event
     """
@@ -694,17 +707,22 @@ def publish_steering_events(scn_key, mqtt_topic, qos):
     
     ts_start = int(time()) #convert secs to minutes
     ts_start = ts_start - ts_start%60
-    
+    str_paylod = ""
     #Convert msg into JSON 
     #steering msg already is into json format
-    if g_config['steering_evt']['type']['evid_assoc'] is 1:
+    if evt_type is 'evid_assoc':
         #print 'sending steering event for ', scn_key, scenario_config[scn_key]['steering']['UserId']
-        json_payload = scenario_config[scn_key]['steering']['evid_assoc_msg']
-        json_payload['id'] = int(ts_start)
-        json_payload['result']['Timestamp'] = int(ts_start)
-        #Change msg back into string
-        str_payload = json.dumps(json_payload, indent=None, separators=(',',':'))
-        publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, str_payload, qos)
+        json_payload = scenario_config[scn_key]['steering']['evid_assoc']['payload']
+    elif evt_type is 'evid_staconnect':
+        #print 'sending steering event for ', scn_key, scenario_config[scn_key]['steering']['UserId']
+        json_payload = scenario_config[scn_key]['steering']['evid_staconnect']['payload']
+
+    json_payload['id'] = int(ts_start)
+    json_payload['result']['Timestamp'] = int(ts_start)
+    #Change msg back into string
+    str_payload = json.dumps(json_payload, indent=None, separators=(',',':'))
+    publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, str_payload, qos)
+        
     
  
 def run_scenario(count):
@@ -714,7 +732,6 @@ def run_scenario(count):
     global g_config
     global scenario_config
     rfrequency = g_config['frequency'] - 2
-    sfrequency = g_config['steering_evt']['frequency']
     
     scenario_start = 0
     scn_key = str(count)
@@ -736,7 +753,10 @@ def run_scenario(count):
 
     ctime = scenario_config[scn_key]['last_msg_ts'] = int(time())
     if g_config['steering_evt']['enabled'] is 1:
-        scenario_config[scn_key]['steering']['last_msg_ts'] = ctime
+        if scenario_config[scn_key]['steering']['evid_assoc']['enabled'] is 1:
+            scenario_config[scn_key]['steering']['evid_assoc']['last_msg_ts'] = ctime
+        if scenario_config[scn_key]['steering']['evid_staconnect']['enabled'] is 1:
+            scenario_config[scn_key]['steering']['evid_staconnect']['last_msg_ts'] = ctime
     
     while True:
 
@@ -745,7 +765,7 @@ def run_scenario(count):
         #print "publishing data thread ", count, ctime, ltime 
 
         if (ctime - scenario_config[scn_key]['last_msg_ts']) > rfrequency or scenario_start is 0:
-            #print "publishing info/report data ", count, ctime, scenario_config[scn_key]['last_msg_ts'], rfrequency
+            #print "publishing info/report data ", scenario_config[scn_key]['user_id'], ctime, scenario_config[scn_key]['last_msg_ts'], rfrequency
             scenario_start = 1
             scenario_config[scn_key]['last_msg_ts'] = int(ctime)
             if g_config['json_ver'] == 'v4':
@@ -761,10 +781,15 @@ def run_scenario(count):
                 scenario_config[scn_key]['pub_info_count'] += 1
                 publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
         
-        if g_config['steering_evt']['enabled'] is 1 and (ctime - scenario_config[scn_key]['steering']['last_msg_ts']) > sfrequency:
-            #print "publishing steering data ", count, ctime, scenario_config[scn_key]['steering']['last_msg_ts'], sfrequency
-            scenario_config[scn_key]['steering']['last_msg_ts'] = int(ctime)
-            publish_steering_events(scn_key, mqtt_topic, g_config['qos'])
+        if g_config['steering_evt']['enabled'] is 1:
+            if scenario_config[scn_key]['steering']['evid_assoc']['enabled'] is 1 and (ctime - scenario_config[scn_key]['steering']['evid_assoc']['last_msg_ts']) > scenario_config[scn_key]['steering']['evid_assoc']['frequency']:
+                #print "publishing steering data ", count, ctime, scenario_config[scn_key]['steering']['last_msg_ts'], sfrequency
+                scenario_config[scn_key]['steering']['evid_assoc']['last_msg_ts'] = int(ctime)
+                publish_steering_events(scn_key, mqtt_topic, g_config['qos'], 'evid_assoc')
+            if scenario_config[scn_key]['steering']['evid_staconnect']['enabled'] is 1 and (ctime - scenario_config[scn_key]['steering']['evid_staconnect']['last_msg_ts']) > scenario_config[scn_key]['steering']['evid_staconnect']['frequency']:
+                #print "publishing steering data ", count, ctime, scenario_config[scn_key]['steering']['last_msg_ts'], sfrequency
+                scenario_config[scn_key]['steering']['evid_staconnect']['last_msg_ts'] = int(ctime)
+                publish_steering_events(scn_key, mqtt_topic, g_config['qos'], 'evid_staconnect')
             
         #scenario_config[scn_key]['mqtt_client'].loop()
 
@@ -808,8 +833,11 @@ def start_scenario():
     #start_rest_api_nmt()
 
     print 'joining threads'
-    for count in range(0, num_aps):
-        g_ap_thr_list[count].join()
+    while True:
+        for count in range(0, num_aps):
+            if g_ap_thr_list[count].isAlive():
+                g_ap_thr_list[count].join(1)
+          
         
 def get_user_auth_list():
     """
@@ -915,6 +943,12 @@ def run_rest_api(port_num):
     #run(app, host=g_config['api_bottle_ip'], port=g_config['api_bottle_port'])
     run(host=g_config['api_bottle_ip'], port=g_config['api_bottle_port'])
 
+def handle_signal(signalNumber, frame):
+    """
+    signal handler for updating provisioning
+    """
+    print "Signal recieived ", signalNumber
+    return 
 
 def main():
     
@@ -927,6 +961,7 @@ def main():
     ap_offset = sys.argv[2]
     config_file = 'config1.json'
 
+    signal.signal(signal.SIGHUP, handle_signal)
 #    config_file = 'scenario.json'
     load_config(config_file, ap_offset, json_ver)
     
