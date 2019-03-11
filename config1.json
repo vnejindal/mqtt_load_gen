@@ -1,15 +1,15 @@
 {
    "_comment":"Configuration File for MQTT LOAD TEST TOOL",
-   "test_broker_ip":"3.88.44.86",
-   "broker_ip":"prod-ha32.iot83.com",
+   "broker_ip":"3.88.44.86",
+   "test_broker_ip":"prod-ha32.iot83.com",
    "broker_port":1883,
    "qos":0,
    "keep_alive":300,
    "clean_session":1,
    "num_aps": 1000000,
-   "sample_size": 300,
+   "sample_size": 3,
    "profile_prefix": "SIMUL_1V7_",
-   "profile_prefix_v4": "SIMUL_V1_",
+   "profile_prefix_v4": "SIMUL_1V4_",
    "profile_prefix_v3": "SIMUL_1V7_",
    "isp": "83incs",
    "frequency":1800,
@@ -30,18 +30,34 @@
        {
           "evid_assoc": 
           {
-             "enabled" : 0,
+             "enabled" : 1,
              "frequency" : 60,
              "sta_evid_assoc_file":"master_sta_evid_assoc.txt"
           },
           "evid_staconnect":
           {
-             "enabled" : 0,
+             "enabled" : 1,
              "frequency" : 60,
              "sta_evid_staconnect_file":"master_sta_evid_staconnect.txt"
           },
-          "evid_staroam": 1,
-          "sta_evid_staroam_file": "master_sta_evid_staroam.txt"
+          "evid_stainfo":
+          {
+             "enabled" : 1,
+             "frequency" : 60,
+             "sta_evid_stainfo_file":"master_sta_evid_stainfo.txt"
+          },
+          "evid_staroam":
+          {
+             "enabled" : 1,
+             "frequency" : 60,
+             "sta_evid_staroam_file":"master_sta_evid_staroam.txt"
+          },
+          "evid_ss":
+          {
+             "enabled" : 1,
+             "frequency" : 60,
+             "sta_evid_ss_file":"master_sta_evid_ss.txt"
+          }
         }          
    },
    "scenarios":
