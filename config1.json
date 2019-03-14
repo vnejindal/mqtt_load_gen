@@ -1,18 +1,18 @@
 {
    "_comment":"Configuration File for MQTT LOAD TEST TOOL",
-   "broker_ip":"3.88.44.86",
-   "test_broker_ip":"prod-ha32.iot83.com",
+   "broker_ip":"1037.internal-iot83.com",
+   "old_broker_ip":"StageDL1037-ext-elb-551238943.us-east-1.elb.amazonaws.com",
    "broker_port":1883,
    "qos":0,
    "keep_alive":300,
-   "clean_session":1,
+   "clean_session":0,
    "num_aps": 1000000,
-   "sample_size": 3,
-   "profile_prefix": "SIMUL_1V7_",
+   "sample_size": 300,
+   "profile_prefix": "SIMUL_1V4_",
    "profile_prefix_v4": "SIMUL_1V4_",
-   "profile_prefix_v3": "SIMUL_1V7_",
+   "profile_prefix_v3": "SIMUL_1V3_",
    "isp": "83incs",
-   "frequency":1800,
+   "frequency": 900,
    "user_ids":"syn_file/userids1.txt",
    "serial_nums":"syn_file/serialnum1.txt",
    "tls_enabled":0,
@@ -20,15 +20,15 @@
    "client_crt":"certs/client.crt",
    "client_key":"certs/client.key",
    "user_auth_file":"syn_file/user_auth.txt",
-   "mqtt_topic_prefix":"REPORT",
+   "mqtt_topic_prefix":"REPORTS",
    "steering_evt":
    {
        "percent":100,
-       "enabled": 1,
+       "enabled": 0,
        "sta_file_path":"syn_file/scenarios/",
        "type":
        {
-          "evid_assoc": 
+          "evid_assoc":
           {
              "enabled" : 1,
              "frequency" : 60,
@@ -40,32 +40,17 @@
              "frequency" : 60,
              "sta_evid_staconnect_file":"master_sta_evid_staconnect.txt"
           },
-          "evid_stainfo":
-          {
-             "enabled" : 1,
-             "frequency" : 60,
-             "sta_evid_stainfo_file":"master_sta_evid_stainfo.txt"
-          },
-          "evid_staroam":
-          {
-             "enabled" : 1,
-             "frequency" : 60,
-             "sta_evid_staroam_file":"master_sta_evid_staroam.txt"
-          },
-          "evid_ss":
-          {
-             "enabled" : 1,
-             "frequency" : 60,
-             "sta_evid_ss_file":"master_sta_evid_ss.txt"
-          }
-        }          
+          "evid_staroam": 1,
+          "sta_evid_staroam_file": "master_sta_evid_staroam.txt"
+        }
    },
    "scenarios":
    {
    		"path":"syn_file/scenarios/",
    		"ap_mac_file":"master_aps_mac_addr.txt",
    		"sta_mac_file":"master_sta_mac_addr.txt",
-   		"single_json_file":"master_rg_singlepayload.json",
+   		"single_json_file":"master_rg_singlepayload_steering.json",
+   		"old_single_json_file":"master_rg_singlepayload.json",
    		"rg":
    		{
    			"info":"master_rg_info.json",

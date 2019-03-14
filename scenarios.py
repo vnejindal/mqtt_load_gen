@@ -692,7 +692,7 @@ def generate_scenarios_single_json():
     
     for usrid in f_usrid:
         userid = usrid.strip()
-        generate_ap_mac_blocks_single_json(16,userid)
+        generate_ap_mac_blocks_single_json(10,userid)
         generate_singlejson_payload(userid)
     
    
@@ -757,8 +757,8 @@ def generate_singlejson_payload(user_id):
     m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][1]['BSSID'] = fp_mac_name.readline().strip()
     m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][2]['BSSID'] = fp_mac_name.readline().strip()
     m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][3]['BSSID'] = fp_mac_name.readline().strip()
-    
     m_sc_json['Equipments'][0]['Messages'][0]['Info']['MoCA'][0]['MACAddress'] = fp_mac_name.readline().strip()
+
     m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress'] = fp_mac_name.readline().strip()
     m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['MACAddress'] = fp_mac_name.readline().strip()
     m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][2]['MACAddress'] = fp_mac_name.readline().strip()
@@ -769,6 +769,32 @@ def generate_singlejson_payload(user_id):
     m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][2]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][2]['BSSID']
     m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][3]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Info']['SSID'][3]['BSSID']
         
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][0]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][0]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][1]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][1]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][2]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][2]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][3]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][3]['obssBSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][3]['tbssBSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][3]['ibssBSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][4]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][6]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][6]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][7]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][7]['OBSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][7]['NBSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][8]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][8]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][9]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][9]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][10]['MACAddress'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][0]['MACAddress']
+    m_sc_json['Equipments'][0]['SmartSteeringLog'][10]['BSSID'] = m_sc_json['Equipments'][0]['Messages'][0]['Report']['WiFiSTAList'][1]['BSSID']
+
+    for index in range(0,11):
+        m_sc_json['Equipments'][0]['SmartSteeringLog'][index]['SerialNumber'] = user_id
+
     fp_mac_name.close()
     
     write_json(f_name, m_sc_json)
@@ -784,14 +810,14 @@ def main():
     '''
     For single JSON scenario files 
     '''
-    #generate_userids(g_config['num_aps'], g_config['profile_prefix'])
-    #generate_scenarios_single_json()
+    generate_userids(g_config['num_aps'], g_config['profile_prefix'])
+    generate_scenarios_single_json()
     
     
     
     # INFO + REPORT - v3 jsons - only RGW, no ext 
-    generate_userids(g_config['num_aps'], g_config['profile_prefix'])
-    generate_scenarios_v3_latest()
+    #generate_userids(g_config['num_aps'], g_config['profile_prefix'])
+    #generate_scenarios_v3_latest()
     
     ## New Version - report + info based 
     #generate_scenarios()
