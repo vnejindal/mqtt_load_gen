@@ -3,7 +3,9 @@
 set +x
 NUM_CONTAINER=10  #Number for r5.4x instance
 LOAD_OFFSET=65
-TOOL_SINDEX=1
+TOOL_SINDEX=$1
+TOOL_CONFIG=$2
+#TOOL_SINDEX=1
 TOOL_EINDEX=$(expr ${TOOL_SINDEX} + ${LOAD_OFFSET})
 WORKDIR=${PWD}
 #WORKDIR=/home/ubuntu/1m7_mqtt_load_gen
@@ -21,7 +23,7 @@ echo "Indexes: ${TOOL_SINDEX} ${TOOL_EINDEX}"
 #sudo docker run -it --rm -v /home/ubuntu:/home/ubuntu load_tool_image
 #time sudo docker run -it --rm -v ${HOST_VOL_PATH}:${DOCKER_VOL_PATH} load_test_vne:0.1
 #sudo docker run -d -t --rm -e TOOL_SINDEX=${TOOL_SINDEX} -e TOOL_EINDEX=${TOOL_EINDEX} -w ${WORKDIR} -v ${HOST_VOL_PATH}:${DOCKER_VOL_PATH} load_test_vne:0.1 sleep infinity
-time sudo docker run -d -t --rm -e TOOL_SINDEX=${TOOL_SINDEX} -e TOOL_EINDEX=${TOOL_EINDEX} -w ${WORKDIR} -v ${HOST_VOL_PATH}:${DOCKER_VOL_PATH} --sysctl=net.ipv4.ip_local_port_range="2000 65535" load_test_vne:0.1
+time sudo docker run -d -t --rm -e TOOL_CONFIG=${TOOL_CONFIG} -e TOOL_SINDEX=${TOOL_SINDEX} -e TOOL_EINDEX=${TOOL_EINDEX} -w ${WORKDIR} -v ${HOST_VOL_PATH}:${DOCKER_VOL_PATH} --sysctl=net.ipv4.ip_local_port_range="2000 65535" load_test_vne:0.1
 TOOL_SINDEX=$(expr ${TOOL_EINDEX} + 1)
 TOOL_EINDEX=$(expr ${TOOL_SINDEX} + ${LOAD_OFFSET})
 sleep ${ITER_SLEEP_TIME_SEC}s
