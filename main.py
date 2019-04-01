@@ -50,6 +50,9 @@ g_steering_evt = {
                   'evid_stainfo': 1,
                   'evid_staroam': 1,
                   'evid_ss': 1,
+                  'evid_log_victim' : 1,
+                  'evid_log_target': 1,
+                  'evid_disassoc_ss' :1,
                   'evid_bsc': 0,
                   'evid_disassoc': 0,
                   'evid_stanum': 0
@@ -843,14 +846,14 @@ def run_scenario(count):
     start_mqtt(scn_key,  'vne_' + mqtt_topic, uname, passwd)
     #start_mqtt(scn_key,  'vne_' + mqtt_topic)
 
-    ctime = scenario_config[scn_key]['last_msg_ts'] = int(time())
+    ctime = scenario_config[scn_key]['last_msg_ts'] = time()
     if g_config['steering_evt']['enabled'] is 1:
         for key in g_steering_evt.keys(): 
             if g_steering_evt[key] is 1 and scenario_config[scn_key]['steering'][key]['enabled'] is 1:
                 scenario_config[scn_key]['steering'][key]['last_msg_ts'] = ctime
 
     while True:
-        ctime = int(time())
+        ctime = time()
         #print "publishing data thread ", count, ctime, ltime 
         if (ctime - scenario_config[scn_key]['last_msg_ts']) > rfrequency or scenario_start is 0:
             #print "publishing info/report data ", scenario_config[scn_key]['user_id'], ctime, scenario_config[scn_key]['last_msg_ts'], rfrequency
@@ -873,13 +876,14 @@ def run_scenario(count):
             for key in g_steering_evt.keys(): 
                 if g_steering_evt[key] is 1 and scenario_config[scn_key]['steering'][key]['enabled'] is 1:
                     if (ctime - scenario_config[scn_key]['steering'][key]['last_msg_ts']) > scenario_config[scn_key]['steering'][key]['frequency']:
-                        scenario_config[scn_key]['steering'][key]['last_msg_ts'] = int(ctime)
+                        #print 'publishing steering evt ',scenario_config[scn_key]['user_id'], ctime, key
+                        scenario_config[scn_key]['steering'][key]['last_msg_ts'] = ctime
                         publish_steering_events(scn_key, mqtt_topic, g_config['qos'], key)
                         sleep(0.05)
 
         #scenario_config[scn_key]['mqtt_client'].loop()
 
-        sleep(1)
+        sleep(0.5)
         
         '''
         #NOT REQUIRED FOR NOW    

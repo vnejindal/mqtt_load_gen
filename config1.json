@@ -31,32 +31,50 @@
           "evid_assoc": 
           {
              "enabled" : 1,
-             "frequency" : 60,
+             "frequency" : 20,
              "sta_evid_assoc_file":"master_sta_evid_assoc.txt"
           },
           "evid_staconnect":
           {
              "enabled" : 1,
-             "frequency" : 60,
+             "frequency" : 20,
              "sta_evid_staconnect_file":"master_sta_evid_staconnect.txt"
           },
           "evid_stainfo":
           {
              "enabled" : 1,
-             "frequency" : 60,
+             "frequency" : 0.5,
              "sta_evid_stainfo_file":"master_sta_evid_stainfo.txt"
           },
           "evid_staroam":
           {
              "enabled" : 1,
-             "frequency" : 60,
+             "frequency" : 1,
              "sta_evid_staroam_file":"master_sta_evid_staroam.txt"
           },
           "evid_ss":
           {
              "enabled" : 1,
-             "frequency" : 60,
+             "frequency" : 20,
              "sta_evid_ss_file":"master_sta_evid_ss.txt"
+          },
+          "evid_log_victim":
+          {
+             "enabled" : 1,
+             "frequency" : 6,
+             "sta_evid_log_victim_file":"master_sta_evid_log_victim.txt"
+          },
+          "evid_log_target":
+          {
+             "enabled" : 1,
+             "frequency" : 20,
+             "sta_evid_log_target_file":"master_sta_evid_log_target.txt"
+          },
+          "evid_disassoc_ss":
+          {
+             "enabled" : 1,
+             "frequency" : 20,
+             "sta_evid_disassoc_ss_file":"master_sta_evid_disassoc_ss.txt"
           }
         }          
    },

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":787878,"sugActType": "Abs","isp": "verizon","result": {"UserId": "G1A115122804178","event":"ABS_EVID_LOG_TARGET_AP_SELECTION","Timestamp":1553899996,"SerialNumber":"G1A115122804178","MACAddress":"5c:ad:cf:d5:33:fc","BSSID":"48:5d:36:88:8e:84","Trigger":5,"ReasonCode":2048}}
