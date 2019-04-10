@@ -22,7 +22,6 @@ import copy
 import signal
 from __builtin__ import False
 
-import mongo_connector
 
 
 
@@ -559,73 +558,6 @@ def load_scenario_config_single_json():
     #print 'Scenario config: ', scenario_config
     g_config['num_aps'] = len(scenario_config)  
 
-def get_config_from_db():
-    """
-    gets config from mongodb connector class 
-    """
-    global g_config
-    config_id = g_config['config_name']
-    db_name = 'tool_config'
-    coll_name = 'provisioning'
-    record = g_config['mongo_connector'].get_record(db_name, coll_name, 'config_id', config_id)
-    if record is None: 
-        print 'Config does not exist in db.. ', config_id
-        sys.exit(1)
-    #print config['config']
-    return json.loads(record['config'])
-
-
-def get_profiles_from_db():
-    """
-    Loads rgw profiles from DB
-    """
-    global g_config
-    global scenario_config
-
-    db_name = 'serialnos'
-    coll_name = g_config['profile_prefix'][:-1]
-
-    # Read rgw ids from rgw_profiles -> profile_prefix -> entries
-    ap_offset = int(g_config['ap_offset'])
-    sample_size = g_config['sample_size']
-   
-    profile_offset = (ap_offset - 1) * sample_size 
-    record_list = g_config['mongo_connector'].get_userids_list(db_name, coll_name, profile_offset, sample_size)
-
-    scn_count = 0
-    for rgw in record_list:
-        sc_cfg = {}
-        sc_cfg['user_id'] = rgw
-        db_name = 'profiles'
-        coll_name = g_config['profile_prefix'][:-1]
-        record = g_config['mongo_connector'].get_record(db_name, coll_name, 'user', rgw)
-        if record is None: 
-             print 'Record does not exist in db.. ', rgw
-             continue
-        sc_cfg['report_payload'] = record['report']
-        sc_cfg['info_payload'] = record['info']
-        
-        if len(g_config['user_auth_list']) != 0:
-            sc_cfg['user_auth_list'] = g_config['user_auth_list'][g_config['user_auth_index']]
-            sc_cfg['user_auth_index'] = g_config['user_auth_index']
-            #print 'user creds: ', sc_cfg['user_auth_list']
-            g_config['user_auth_index'] = (g_config['user_auth_index'] + 1) % len(g_config['user_auth_list'])
-    
-        scenario_config[str(scn_count)] = sc_cfg
-        #print 'Adding scenario config: ', scn_count
-        #print scenario_config[str(scn_count)]
-        #print 'Starting SNO: ', sc_cfg['serial_no']
-        scn_count = scn_count + 1 
-        #print scenario_config
-    print 'Total profiles to run: ', len(scenario_config)
-    print 'Start UserId: ', scenario_config['0']['user_id'] 
-    print 'End UserId: ', scenario_config[str(scn_count - 1)]['user_id']
-    #print 'User list: ', userid_list
-    #print 'Sno list: ', sno_list
-    #print 'Scenario config: ', scenario_config
-    g_config['num_aps'] = len(scenario_config)  
-
-
 def load_scenario_config_json_v3():
     """
     For V3 jsons - info and report ; For verizon - no Ext. only RGWs    
@@ -633,10 +565,6 @@ def load_scenario_config_json_v3():
     global scenario_config
     global g_config
     
-    if g_config['provmode'] is 'dbconfig': 
-       get_profiles_from_db()
-       return 
-
     #change delim
     delim = '/'
     profile_file = g_config['scenarios']['path'] + delim + g_config['profile_prefix_v3'] + str(g_config['num_aps']) + '.txt'
@@ -728,38 +656,31 @@ def load_steering_evt_files():
                 scenario_config[index]['steering'][key]['payload'] = copy.deepcopy(g_config['steering_evt'][key])
                 scenario_config[index]['steering'][key]['enabled'] = g_config['steering_evt']['type'][key]['enabled']
                 scenario_config[index]['steering'][key]['frequency'] = g_config['steering_evt']['type'][key]['frequency']
+                scenario_config[index]['steering'][key]['count'] = 0
+                scenario_config[index]['steering'][key]['ts_list'] = []
+ 
                 #print 'steering evts loaded :', key
-
-
-def load_config(config_file, ap_offset, json_ver, config_name = ''):
+        
+def load_config(config_file, ap_offset, json_ver):
     """
     Loads the complete config at init time
     """
     global g_config
-
-    #Change threading stack size
-    print 'Current Thread stack size ', threading.stack_size()
-    threading.stack_size(64*1024) #64KB
-    print 'New Thread stack size ', threading.stack_size()
-    
+    g_config = get_json_config(config_file)
     #This offset will start AP with this number + num_aps to be executed in that process
     g_config['ap_offset'] = ap_offset
     g_config['json_ver'] = json_ver
-
-    if config_name is not '': 
-        g_config['provmode'] = 'dbconfig'
-        g_config['config_name'] = config_name
-        g_config['mongo_connector'] = mongo_connector.mongo_connector()
-        g_config.update(get_config_from_db())
-    else: 
-        g_config['provmode'] = 'fileconfig'
-        g_config.update(get_json_config(config_file))
 
     # create a lock
     g_config['thr_lock'] = threading.Lock()
     ## Load user auth list if it is present
     get_user_auth_list()
 
+    #Change threading stack size
+    print 'Current Thread stack size ', threading.stack_size()
+    threading.stack_size(64*1024) #64KB
+    print 'New Thread stack size ', threading.stack_size()
+    
     # Scenario Specific Config
     # load_scenario_config()
     #load_scenario_config_v1()
@@ -790,6 +711,36 @@ def publish_data(mqtt_client, topic, payload, mqtt_qos):
     
 #    print 'published: ', rc, mid
 
+def publish_steering_events_burst(scn_key, mqtt_topic, qos):
+    """
+    takes care of bursty handling of msgs
+    """
+    global g_config
+    global scenario_config
+    
+    if scenario_config[scn_key]['steering']['enabled'] is not 1:
+        #print 'steering not enabled ', scn_key
+        return
+    if scenario_config[scn_key]['steering']['ready'] is not 1: 
+        #print 'steering not ready ', scn_key
+        return
+    
+    for evt_type in g_steering_evt.keys(): 
+        if g_steering_evt[evt_type] is 1 and scenario_config[scn_key]['steering'][evt_type]['enabled'] is 1:
+            #print 'sending steering evt for ', scn_key, scenario_config[scn_key]['steering'][evt_type]['count'], len(scenario_config[scn_key]['steering'][evt_type]['ts_list'])
+            for count in range(0, scenario_config[scn_key]['steering'][evt_type]['count']):
+                str_paylod = ""
+                #Convert msg into JSON 
+                #steering msg already is into json format
+                json_payload = scenario_config[scn_key]['steering'][evt_type]['payload']
+                json_payload['id'] = int(scenario_config[scn_key]['steering'][evt_type]['ts_list'][count])
+                json_payload['result']['Timestamp'] = json_payload['id']
+                #Change msg back into string
+                str_payload = json.dumps(json_payload, indent=None, separators=(',',':'))
+                publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, str_payload, qos)
+            scenario_config[scn_key]['steering'][evt_type]['count'] = 0
+            del scenario_config[scn_key]['steering'][evt_type]['ts_list']
+            scenario_config[scn_key]['steering'][evt_type]['ts_list'] = []
 
 def publish_steering_events(scn_key, mqtt_topic, qos, evt_type):
     """
@@ -807,6 +758,12 @@ def publish_steering_events(scn_key, mqtt_topic, qos, evt_type):
     
     ts_start = int(time()) #convert secs to minutes
     ts_start = ts_start - ts_start%60
+    
+    if g_config['steering_evt']['mode'] == 'burst':
+         scenario_config[scn_key]['steering'][evt_type]['count'] += 1 
+         scenario_config[scn_key]['steering'][evt_type]['ts_list'].append(ts_start)
+         return
+
     str_paylod = ""
     #Convert msg into JSON 
     #steering msg already is into json format
@@ -843,7 +800,8 @@ def run_scenario(count):
         uname = scenario_config[scn_key]['user_auth_list'][0]
         passwd = scenario_config[scn_key]['user_auth_list'][1]
         
-    start_mqtt(scn_key,  'vne_' + mqtt_topic, uname, passwd)
+    start_mqtt(scn_key, scenario_config[scn_key]['user_id'].strip(), uname, passwd)
+    #start_mqtt(scn_key,  'vne_' + mqtt_topic, uname, passwd)
     #start_mqtt(scn_key,  'vne_' + mqtt_topic)
 
     ctime = scenario_config[scn_key]['last_msg_ts'] = time()
@@ -864,10 +822,13 @@ def run_scenario(count):
                 scenario_config[scn_key]['pub_report_count'] += 1
                 publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['payload'], g_config['qos'])
             else: 
+                #Burst Steering evt handling here
+                if g_config['steering_evt']['mode'] == 'burst':
+                    publish_steering_events_burst(scn_key, mqtt_topic, g_config['qos'])
                 process_report_payload(count)
                 scenario_config[scn_key]['pub_report_count'] += 1
                 publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['report_payload'], g_config['qos'])
-                sleep(0.1)
+                #sleep(0.1)
                 process_info_payload(count)
                 scenario_config[scn_key]['pub_info_count'] += 1
                 publish_data(scenario_config[scn_key]['mqtt_client'], mqtt_topic, scenario_config[scn_key]['info_payload'], g_config['qos'])
@@ -876,10 +837,10 @@ def run_scenario(count):
             for key in g_steering_evt.keys(): 
                 if g_steering_evt[key] is 1 and scenario_config[scn_key]['steering'][key]['enabled'] is 1:
                     if (ctime - scenario_config[scn_key]['steering'][key]['last_msg_ts']) > scenario_config[scn_key]['steering'][key]['frequency']:
-                        #print 'publishing steering evt ',scenario_config[scn_key]['user_id'], ctime, key
                         scenario_config[scn_key]['steering'][key]['last_msg_ts'] = ctime
+                        #print 'publishing steering evt ',scenario_config[scn_key]['user_id'], ctime, key
                         publish_steering_events(scn_key, mqtt_topic, g_config['qos'], key)
-                        sleep(0.05)
+                        #sleep(0.05)
 
         #scenario_config[scn_key]['mqtt_client'].loop()
 
@@ -1043,20 +1004,17 @@ def handle_signal(signalNumber, frame):
 def main():
     
     global g_config
-    if len (sys.argv) != 4 :
-        print "Usage: python main.py <v3|v4> <AP Offset> <tool_config>"
+    if len (sys.argv) != 3 :
+        print "Usage: python main.py <v3|v4> <AP Offset>"
         sys.exit(1)   
-
-    provmode = 'dbconfig'
-
+    
     json_ver = sys.argv[1]
     ap_offset = sys.argv[2]
-    config_name = sys.argv[3]
     config_file = 'config1.json'
 
     signal.signal(signal.SIGHUP, handle_signal)
 #    config_file = 'scenario.json'
-    load_config(config_file, ap_offset, json_ver, config_name)
+    load_config(config_file, ap_offset, json_ver)
     
     start_scenario()
     

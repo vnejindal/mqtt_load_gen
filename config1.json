@@ -25,6 +25,7 @@
    {
        "percent":100,
        "enabled": 0,
+       "mode": "burst",
        "sta_file_path":"syn_file/scenarios/",
        "type":
        {
